@@ -64,6 +64,7 @@ from src.trackers.PTT import PTT
 from src.trackers.R4E import R4E
 from src.trackers.RAS import RAS
 from src.trackers.RF import RF
+from src.trackers.RMC import RMC
 from src.trackers.RTF import RTF
 from src.trackers.SAM import SAM
 from src.trackers.SHRI import SHRI
@@ -580,9 +581,7 @@ class TRACKER_SETUP:
             'Authorization': f"Bearer {self.config['TRACKERS'][tracker]['api_key'].strip()}",
             'Accept': 'application/json'
         }
-        params = {
-            'tmdb': meta['tmdb'],
-        }
+        params = {"tmdbId": meta["tmdb"]} if tracker == "HUNO" else {"tmdb": meta["tmdb"]}
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
                 response = await client.get(url=url, headers=headers, params=params)
@@ -603,19 +602,19 @@ class TRACKER_SETUP:
 
                     try:
                         for each in results_list:
-                            attributes = cast(JsonDict, each)
+                            attributes = each.get("attributes", each) if tracker == "HUNO" else cast(JsonDict, each)
                             result: JsonDict = {
-                                'id': attributes.get('id'),
-                                'name': attributes.get('name'),
-                                'description': attributes.get('description'),
-                                'category': attributes.get('category_id'),
-                                'type': attributes.get('type_id'),
-                                'resolution': attributes.get('resolution_id'),
-                                'bounty': attributes.get('bounty'),
-                                'status': attributes.get('status'),
-                                'claimed': attributes.get('claimed'),
-                                'season': attributes.get('season_number'),
-                                'episode': attributes.get('episode_number'),
+                                "id": each.get("id") if tracker == "HUNO" else attributes.get("id"),
+                                "name": attributes.get("name"),
+                                "description": attributes.get("description"),
+                                "category": attributes.get("category_id"),
+                                "type": attributes.get("type_id"),
+                                "resolution": attributes.get("resolution_id"),
+                                "bounty": attributes.get("bounty"),
+                                "status": attributes.get("status"),
+                                "claimed": attributes.get("claimed"),
+                                "season": attributes.get("season_number"),
+                                "episode": attributes.get("episode_number"),
                             }
                             requests.append(result)
                     except Exception as e:
@@ -1340,13 +1339,13 @@ tracker_class_map: dict[str, type[Any]] = {
     'A4K': A4K, 'ACM': ACM, 'AITHER': AITHER, 'ANT': ANT, 'AR': AR, 'ASC': ASC, 'AZ': AZ, 'BHD': BHD, 'BHDTV': BHDTV, 'BJS': BJS, 'BLU': BLU, 'BT': BT, 'CBR': CBR,
     'CZ': CZ, 'DC': DC, 'DP': DP, 'DT': DT, 'EMUW': EMUW, 'FNP': FNP, 'FF': FF, 'FL': FL, 'FRIKI': FRIKI, 'GPW': GPW, 'HDB': HDB, 'HDS': HDS, 'HDT': HDT, 'HHD': HHD, 'HUNO': HUNO, 'ITT': ITT,
     'IHD': IHD, 'IS': IS, 'LCD': LCD, 'LDU': LDU, 'LST': LST, 'LT': LT, 'LUME': LUME, 'MTV': MTV, 'NBL': NBL, 'OE': OE, 'OTW': OTW, 'PHD': PHD, 'PT': PT, 'PTP': PTP, 'PTER': PTER, 'PTS': PTS, 'PTT': PTT,
-    'R4E': R4E, 'RAS': RAS, 'RF': RF, 'RTF': RTF, 'SAM': SAM, 'SHRI': SHRI, 'SN': SN, 'SP': SP, 'SPD': SPD, 'STC': STC, 'THR': THR,
+    'R4E': R4E, 'RAS': RAS, 'RF': RF, 'RMC': RMC, 'RTF': RTF, 'SAM': SAM, 'SHRI': SHRI, 'SN': SN, 'SP': SP, 'SPD': SPD, 'STC': STC, 'THR': THR,
     'TIK': TIK, 'TL': TL, 'TLZ': TLZ, 'TOS': TOS, 'TVC': TVC, 'TTG': TTG, 'TTR': TTR, 'ULCX': ULCX, 'UTP': UTP, 'YOINK': YOINK, 'YUS': YUS
 }
 
 api_trackers = {
     'A4K', 'ACM', 'AITHER', 'BHD', 'BLU', 'CBR', 'DP', 'DT', 'EMUW', 'FNP', 'FRIKI', 'HHD', 'HUNO', 'IHD', 'ITT', 'LCD', 'LDU', 'LST', 'LT', 'LUME',
-    'OE', 'OTW', 'PT', 'PTT', 'RAS', 'RF', 'R4E', 'SAM', 'SHRI', 'SP', 'STC', 'TIK', 'TLZ', 'TOS', 'TTR', 'ULCX', 'UTP', 'YOINK', 'YUS'
+    'OE', 'OTW', 'PT', 'PTT', 'RAS', 'RF', 'R4E', 'RMC', 'SAM', 'SHRI', 'SP', 'STC', 'TIK', 'TLZ', 'TOS', 'TTR', 'ULCX', 'UTP', 'YOINK', 'YUS'
 }
 
 other_api_trackers = {

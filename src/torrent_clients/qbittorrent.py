@@ -1803,6 +1803,7 @@ class QbittorrentClientMixin:
 
 async def match_tracker_url(tracker_urls: list[str], meta: dict[str, Any]) -> None:
     tracker_url_patterns = {
+        'a4k': ["https://aura4k.net"],
         'acm': ["https://eiga.moi"],
         'aither': ["https://aither.cc"],
         'ant': ["tracker.anthelion.me"],
@@ -1846,6 +1847,7 @@ async def match_tracker_url(tracker_urls: list[str], meta: dict[str, Any]) -> No
         'ras': ["https://rastastugan.org"],
         'rf': ["https://reelflix.xyz", "https://reelflix.cc"],
         'rtf': ["peer.retroflix"],
+        'rmc': ["https://retro-movies.club"],
         'sam': ["https://samaritano.cc"],
         'sp': ["https://seedpool.org"],
         'spd': ["ramjet.speedapp.io", "ramjet.speedapp.to", "ramjet.speedappio.org"],

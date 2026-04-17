@@ -1,4 +1,36 @@
-__version__ = "v7.1.2"
+__version__ = "v7.1.4"
+
+"""
+Release Notes for version v7.1.4 (2026-04-16):
+
+# ## What's Changed
+# 
+# * ANT: key in header by @Audionut in 27cb44e
+# * DP: banned groups by @Audionut in d1da3dc
+# * BHD: encode settings by @Audionut in 4066131
+# * fix tvmovie handle when no imdb by @Audionut in 323b3e3
+# * fix: ffmpeg round to even scale by @Audionut in 2f614c5
+# 
+# **Full Changelog**: https://github.com/Audionut/Upload-Assistant/compare/v7.1.3...v7.1.4
+"""
+
+
+"""
+Release Notes for version v7.1.3 (2026-04-14):
+
+# ## What's Changed
+# 
+# * mkbrr: add windows arm support by @Audionut in 0fabdb0
+# * fix: bdmv playlist scoring by @Audionut in a5a7693
+# * OTW: only 1 resolution per episode by @Audionut in daef192
+# * fix(ASC): missing TMDB data for description building (#1331) by @wastaken7 in 8040523
+# * feat: add support for CBR pending torrents API (#1332) by @wastaken7 in f5e420b
+# * ANT bdinfo update (#1334) by @Audionut in cf42a25
+# * Improved season pack pattern check for anime (#1335) by @Khoa Pham in 2d1b0cf
+# 
+# **Full Changelog**: https://github.com/Audionut/Upload-Assistant/compare/v7.1.2...v7.1.3
+"""
+
 
 """
 Release Notes for version v7.1.2 (2026-03-28):

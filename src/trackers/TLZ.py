@@ -1,5 +1,6 @@
 # Upload Assistant © 2025 Audionut & wastaken7 — Licensed under UAPL v1.0
 from typing import Any, Optional
+import re
 
 from src.trackers.COMMON import COMMON
 from src.trackers.UNIT3D import UNIT3D
@@ -69,9 +70,6 @@ class TLZ(UNIT3D):
             'EPISODE': '3',
             'PACK': '4',
         }.get(type_value, '0')
-
-        # Regex-based scene-style CAM / TS / pre-retail detection should OVERRIDE FILM
-        import re
 
         # Check multiple likely metadata fields used in scene-style naming
         release_name = ' '.join([

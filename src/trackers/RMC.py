@@ -164,7 +164,7 @@ class RMC(UNIT3D):
         if aka:
             rmc_name = rmc_name.replace(f" {aka} ", " ")
 
-        rmc_name = re.sub(r'[^A-Za-z0-9 ._-]+', '', rmc_name)
+        rmc_name = re.sub(r'[^A-Za-z0-9 ._+-]+', '', rmc_name)
         rmc_name = re.sub(r'\s+', ' ', rmc_name).strip()
 
         return {'name': rmc_name}

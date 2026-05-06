@@ -19,7 +19,15 @@ class MNS(UNIT3D):
         self.upload_url = f'{self.base_url}/api/torrents/upload'
         self.search_url = f'{self.base_url}/api/torrents/filter'
         self.torrent_url = f'{self.base_url}/torrents/'
-        self.banned_groups = [""]
+        self.banned_groups = [
+            '4K4U', 'AROMA', 'aXXo', 'BRrip', 'BRrip', 'CK4', 'CM8', 'core', 'CrEwSaDe', 'd3g',
+            'DNL', 'EMBER', 'EVO', 'FaNGDiNG0', 'FGT', 'FooKaS', 'FRDS', 'FROZEN', 'GalaxyRG', 'Grym',
+            'GrymLegacy', 'HD2DVD', 'HDTime', 'ION10', 'Judas', 'LAMA', 'Leffe', 'LycanHD', 'MeGusta',
+            'MezRips', 'mHD', 'msd', 'mSD', 'NeXus', 'NhaNc3', 'nHD', 'nikt0', 'nSD', 'OFT', 'OsC',
+            'PRODJi', 'ProRes', 'PYC', 'QxR', 'RARBG', 'RCDiVX', 'RDN', 'SAMPA', 'SANTi', 'Sicario',
+            'Silence', 'SM737', 'STUTTERSHIT', 'Tigole', 'TSP', 'TSPxL', 'UTR', 'ViSION', 'WAF', 'Will1869',
+            'x0r', 'YIFY', 'YTS', 'ZMNT',
+        ]
 
     async def get_additional_data(self, meta: Meta) -> dict[str, str]:
         return {

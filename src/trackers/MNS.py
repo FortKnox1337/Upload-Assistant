@@ -1,6 +1,7 @@
 # Upload Assistant — MidnightScene (UNIT3D based)
-from typing import Any
+from typing import Any, cast
 
+from src.languages import languages_manager
 from src.trackers.COMMON import COMMON
 from src.trackers.UNIT3D import UNIT3D
 
@@ -91,3 +92,29 @@ class MNS(UNIT3D):
             return resolution_map
         selected = resolution or meta['resolution']
         return {'resolution_id': resolution_map.get(selected, '10')}
+
+    async def get_name(self, meta: Meta) -> dict[str, str]:
+        mns_name = str(meta.get('name', ''))
+        resolution = str(meta.get('resolution', ''))
+        
+        # Ensure languages are processed
+        if not meta.get('audio_languages'):
+            await languages_manager.process_desc_language(meta, tracker=self.tracker)
+        
+        audio_languages_value = meta.get('audio_languages', [])
+        audio_languages = cast(list[str], audio_languages_value) if isinstance(audio_languages_value, list) else []
+
+        # Rule: Language only included if NO English audio track exists. All upper case. 
+        # Full discs (BDMV/DVD) are exempt.
+        if meta.get('is_disc') not in ["BDMV", "DVD"]:
+            if audio_languages and not await languages_manager.has_english_language(audio_languages):
+                foreign_lang = str(audio_languages[0]).upper()
+                
+                if foreign_lang not in mns_name.upper():
+                    mns_name = mns_name.replace(f"{resolution}", f"{foreign_lang} {resolution}", 1)
+
+        # Rule: In the absence of a release group use NOGROUP as the tag
+        if not meta.get('tag'):
+            mns_name += "-NOGROUP"
+
+        return {'name': mns_name}

@@ -1,3 +1,5 @@
+For further development, see https://github.com/autobrr/upbrr
+
 ### NOTE:
 - This project is in development freeze. Only critical bugs will be addressed moving forward.
 - More details on the future of Upload Assistant will be available at a later date.

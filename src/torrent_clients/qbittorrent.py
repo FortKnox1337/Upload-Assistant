@@ -1841,6 +1841,7 @@ async def match_tracker_url(tracker_urls: list[str], meta: dict[str, Any]) -> No
         'nbl': ["tracker.nebulance"],
         'oe': ["https://onlyencodes.cc"],
         'otw': ["https://oldtoons.world"],
+        'pg': ["https://t.peergarden.org"],
         'phd': ["tracker.privatehd"],
         'pt': ["https://portugas.org"],
         'ptp': ["passthepopcorn.me"],

@@ -76,6 +76,14 @@ class PG(UNIT3D):
             '480i': '9'
         }.get(meta['resolution'], '10')
         return {'resolution_id': resolution_id}
+        
+    async def get_keywords(self, meta):
+        keywords = meta.get("keywords", "")
+
+        if len(keywords) > 255:
+            keywords = keywords[:255]
+
+        return {"keywords": keywords}
 
     async def get_featured(self, _meta: Meta) -> dict[str, str]:
         return {}

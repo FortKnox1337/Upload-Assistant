@@ -53,19 +53,6 @@ class PG(UNIT3D):
             'ENCODE': '3'
         }.get(meta['type'], '0')
         return {'type_id': type_id}
-        
-    async def get_featured(self, _meta: Meta) -> dict[str, str]:
-        return {}
-
-    async def get_free(self, meta: Meta) -> dict[str, str]:
-        _ = meta
-        return {}
-
-    async def get_doubleup(self, _meta: Meta) -> dict[str, str]:
-        return {}
-
-    async def get_sticky(self, _meta: Meta) -> dict[str, str]:
-        return {}
 
     async def get_resolution_id(
         self,
@@ -89,3 +76,25 @@ class PG(UNIT3D):
             '480i': '9'
         }.get(meta['resolution'], '10')
         return {'resolution_id': resolution_id}
+
+    async def get_featured(self, _meta: Meta) -> dict[str, str]:
+        return {}
+
+    async def get_free(self, _meta: Meta) -> dict[str, str]:
+        return {}
+
+    async def get_doubleup(self, _meta: Meta) -> dict[str, str]:
+        return {}
+
+    async def get_sticky(self, _meta: Meta) -> dict[str, str]:
+        return {}
+
+    async def get_data(self, meta):
+        data = await super().get_data(meta)
+
+        data.pop("free", None)
+        data.pop("featured", None)
+        data.pop("doubleup", None)
+        data.pop("sticky", None)
+
+        return data

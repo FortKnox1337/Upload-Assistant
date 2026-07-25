@@ -92,6 +92,7 @@ Implementation notes:
 - `thumbnail_size` (str): Thumbnail width for hosts that support `[img=WIDTH]` (default `"350"`).
 - `screens_per_row` (str): Screenshots per row in description (only for some trackers).
 - `frame_overlay` (bool): Overlay frame number/type and “Tonemapped” (if applicable) on screenshots.
+- `scale_screenshots_for_par` (bool): When `false` (default), keep each PNG at the encoded Width × Height reported by MediaInfo. Set it to `true` to convert non-square pixels to square pixels for display; that can alter the PNG dimensions.
 - `overlay_text_size` (str): Overlay text size (scales with resolution).
 
 Implementation notes:

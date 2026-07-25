@@ -37,6 +37,7 @@ DEFAULT_KEY_TYPES: dict[str, tuple[type, ...]] = {
     "cutoff_screens": (str, int),
     "thumbnail_size": (str, int),
     "frame_overlay": (bool,),
+    "scale_screenshots_for_par": (bool,),
     "tone_map": (bool,),
     "use_libplacebo": (bool,),
     "ffmpeg_is_good": (bool,),

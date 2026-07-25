@@ -31,12 +31,13 @@ tone_map = False
 ffmpeg_compression = "6"
 algorithm = "mobius"
 desat = 10.0
+scale_screenshots_for_par = False
 
 
 def _apply_config(config: Mapping[str, Any]) -> None:
     global default_config, task_limit, cutoff
     global ffmpeg_limit, ffmpeg_is_good, use_libplacebo
-    global tone_map, ffmpeg_compression, algorithm, desat
+    global tone_map, ffmpeg_compression, algorithm, desat, scale_screenshots_for_par
 
     default_section = config.get('DEFAULT', {})
     default_config = cast(dict[str, Any], default_section) if isinstance(default_section, Mapping) else {}
@@ -57,6 +58,7 @@ def _apply_config(config: Mapping[str, Any]) -> None:
     tone_map = default_config.get('tone_map', False)
     ffmpeg_compression = str(default_config.get('ffmpeg_compression', '6'))
     algorithm = str(default_config.get('algorithm', 'mobius')).strip()
+    scale_screenshots_for_par = default_config.get('scale_screenshots_for_par', False)
     try:
         desat = float(default_config.get('desat', 10.0))
     except (TypeError, ValueError):
@@ -535,12 +537,12 @@ async def dvd_screenshots(
             width = float(track.width)
             height = float(track.height)
             frame_rate = float(track.frame_rate)
-    if par < 1:
+    if scale_screenshots_for_par and par < 1:
         new_height: float = dar * height
         sar = width / new_height
         w_sar = 1.0
         h_sar = sar
-    else:
+    elif scale_screenshots_for_par:
         sar = par
         w_sar = sar
         h_sar = 1.0
@@ -921,7 +923,7 @@ async def screenshots(
         dar = safe_float(video_track.get('DisplayAspectRatio'), 16.0/9.0, "DisplayAspectRatio")
         frame_rate = safe_float(video_track.get('FrameRate'), 24.0, "FrameRate")
 
-        if par == 1:
+        if not scale_screenshots_for_par or par == 1:
             sar = w_sar = h_sar = 1.0
         elif par < 1:
             new_height = dar * height

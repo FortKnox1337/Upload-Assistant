@@ -127,6 +127,10 @@ config = {
         # Overlay text size (scales with resolution)
         "overlay_text_size": "18",
 
+        # Keep screenshot dimensions equal to the encoded video dimensions reported by MediaInfo.
+        # Set true to scale non-square-pixel sources to square pixels for display; this can change the PNG dimensions.
+        "scale_screenshots_for_par": False,
+
         # Limit how many ffmpeg processes can run at once
         # The final value will be the minimum, between this value and number of screens being processed
         "process_limit": "4",

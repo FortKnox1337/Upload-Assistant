@@ -60,7 +60,7 @@ Important gotchas:
 ### Image host selection (priority list)
 Order matters: `img_host_1` is primary, later hosts are fallbacks.
 
-- `img_host_1`..`img_host_5` (str): Image host names. Valid examples include `imgbb`, `ptpimg`, `imgbox`, `pixhost`, `lensdump`, `ptscreens`, `onlyimage`, `dalexni`, `zipline`, `passtheimage`, `seedpool_cdn`, `utppm`.
+- `img_host_1`..`img_host_5` (str): Image host names. Valid examples include `imgbb`, `ptpimg`, `imgbox`, `pixhost`, `lensdump`, `ptscreens`, `onlyimage`, `dalexni`, `zipline`, `passtheimage`, `seedpool_cdn`, `lostimg`, `utppm`.
 
 ### Image host credentials
 - `imgbb_api` (str): API key for imgbb.
@@ -73,6 +73,7 @@ Order matters: `img_host_1` is primary, later hosts are fallbacks.
 - `zipline_url` (str): Base URL for a Zipline instance.
 - `zipline_api_key` (str): Zipline API key.
 - `seedpool_cdn_api` (str): Seedpool CDN API key.
+- `lostimg_api` (str): API key for Lostimg.
 
 ### Description extras
 - `add_logo` (bool): Add a TMDb logo image at the top of the description.

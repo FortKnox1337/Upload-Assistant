@@ -35,6 +35,8 @@ config = {
         "oeimg_api": "",
         "dalexni_api": "",
         "passtheima_ge_api": "",
+        # Lostimg API key
+        "lostimg_api": "",
 
         # custom zipline url
         "zipline_url": "",
@@ -46,7 +48,7 @@ config = {
         "sharex_api_key": "",
 
         # Order of image hosts. primary host as first with others as backup
-        # Available image hosts: imgbb, ptpimg, imgbox, pixhost, lensdump, ptscreens, oeimg, dalexni, zipline, passtheimage, seedpool_cdn, sharex, utppm
+        # Available image hosts: imgbb, ptpimg, imgbox, pixhost, lensdump, ptscreens, oeimg, dalexni, zipline, passtheimage, seedpool_cdn, sharex, lostimg, utppm
         "img_host_1": "imgbb",
         "img_host_2": "imgbox",
 

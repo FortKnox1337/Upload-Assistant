@@ -31,7 +31,7 @@ config = {
         # IMAGE HOSTING SETTINGS
 
         # Order of image hosts. primary host as first with others as backup
-        # Available image hosts: imgbb, ptpimg, imgbox, pixhost, lensdump, ptscreens, onlyimage, dalexni, zipline, passtheimage, seedpool_cdn, sharex, utppm
+        # Available image hosts: imgbb, ptpimg, imgbox, pixhost, lensdump, ptscreens, onlyimage, dalexni, zipline, passtheimage, seedpool_cdn, lostimg, sharex, utppm
         "img_host_1": "",
         "img_host_2": "",
         "img_host_3": "",
@@ -52,6 +52,8 @@ config = {
         "zipline_api_key": "",
         # Seedpool CDN API key
         "seedpool_cdn_api": "",
+        # Lostimg API key
+        "lostimg_api": "",
         # ShareX-style image host (IMageHosting) token
         "sharex_url": "https://img.digitalcore.club/api/upload",
         "sharex_api_key": "",

@@ -205,6 +205,7 @@ const imageHostApiKeys = {
   passtheimage: ['passtheima_ge_api'],
   zipline: ['zipline_url', 'zipline_api_key'],
   seedpool_cdn: ['seedpool_cdn_api'],
+  lostimg: ['lostimg_api'],
   sharex: ['sharex_url', 'sharex_api_key'],
   utppm: ['utppm_api']
 };

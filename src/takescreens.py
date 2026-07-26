@@ -317,7 +317,7 @@ async def disc_screenshots(
                     else:
                         console.print(f"[red]Image {image_path} with size {image_size} bytes: does not meet size requirements for {img_host}, retaking.")
                         retake = True
-                elif img_host and img_host in ["ptpimg", "lensdump", "ptscreens", "onlyimage", "dalexni", "zipline", "passtheimage", "seedpool_cdn", "sharex", "utppm"]:
+                elif img_host and img_host in ["ptpimg", "lensdump", "ptscreens", "onlyimage", "dalexni", "zipline", "passtheimage", "seedpool_cdn", "sharex", "lostimg", "utppm"]:
                     if meta['debug']:
                         console.print(f"[green]Image {image_path} meets size requirements for {img_host}.[/green]")
                 else:
@@ -348,7 +348,7 @@ async def disc_screenshots(
                             if new_size > 75000 and new_size <= 10000000:
                                 console.print(f"[green]Successfully retaken screenshot for: {image_path} ({new_size} bytes)[/green]")
                                 valid_image = True
-                        elif img_host and img_host in ["ptpimg", "lensdump", "ptscreens", "onlyimage", "dalexni", "zipline", "passtheimage", "seedpool_cdn", "sharex", "utppm"] and new_size > 75000:
+                        elif img_host and img_host in ["ptpimg", "lensdump", "ptscreens", "onlyimage", "dalexni", "zipline", "passtheimage", "seedpool_cdn", "sharex", "lostimg", "utppm"] and new_size > 75000:
                             console.print(f"[green]Successfully retaken screenshot for: {image_path} ({new_size} bytes)[/green]")
                             valid_image = True
 
@@ -1134,7 +1134,7 @@ async def screenshots(
                     else:
                         console.print(f"[red]Image {image_path} with size {image_size} bytes: does not meet size requirements for {img_host}, retaking.")
                         retake = True
-                elif img_host and img_host in ["ptpimg", "lensdump", "ptscreens", "onlyimage", "dalexni", "zipline", "passtheimage", "seedpool_cdn", "sharex", "utppm"]:
+                elif img_host and img_host in ["ptpimg", "lensdump", "ptscreens", "onlyimage", "dalexni", "zipline", "passtheimage", "seedpool_cdn", "sharex", "lostimg", "utppm"]:
                     if meta['debug']:
                         console.print(f"[green]Image {image_path} meets size requirements for {img_host}.[/green]")
                 else:
@@ -1180,7 +1180,7 @@ async def screenshots(
                                 if 75000 < new_size <= 10000000:
                                     console.print(f"[green]Successfully retaken screenshot for: {screenshot_path} ({new_size} bytes)[/green]")
                                     valid_image = True
-                            elif img_host and img_host in ["ptpimg", "lensdump", "ptscreens", "onlyimage", "dalexni", "zipline", "passtheimage", "seedpool_cdn", "sharex", "utppm"] and new_size > 75000:
+                            elif img_host and img_host in ["ptpimg", "lensdump", "ptscreens", "onlyimage", "dalexni", "zipline", "passtheimage", "seedpool_cdn", "sharex", "lostimg", "utppm"] and new_size > 75000:
                                 console.print(f"[green]Successfully retaken screenshot for: {screenshot_path} ({new_size} bytes)[/green]")
                                 valid_image = True
 
@@ -1221,7 +1221,7 @@ async def screenshots(
                         elif img_host and img_host in ["imgbox", "pixhost"]:
                             if 75000 < new_size <= 10000000:
                                 valid_image = True
-                        elif img_host and img_host in ["ptpimg", "lensdump", "ptscreens", "onlyimage", "dalexni", "zipline", "passtheimage", "seedpool_cdn", "sharex", "utppm"] and new_size > 75000:
+                        elif img_host and img_host in ["ptpimg", "lensdump", "ptscreens", "onlyimage", "dalexni", "zipline", "passtheimage", "seedpool_cdn", "sharex", "lostimg", "utppm"] and new_size > 75000:
                             valid_image = True
 
                         if valid_image:

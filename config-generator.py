@@ -400,6 +400,7 @@ def get_img_host(
         "ziplinestudio": ["zipline_url", "zipline_api_key"],
         "passtheimage": "passtheima_ge_api",
         "seedpool_cdn": "seedpool_cdn_api",
+        "lostimg": "lostimg_api",
         "sharex": ["sharex_url", "sharex_api_key"],
         "utppm": "utppm_api",
         "imgbox": None,

@@ -41,6 +41,8 @@ config = {
         # custom zipline url
         "zipline_url": "",
         "zipline_api_key": "",
+        # MidnightScene (Zipline) API key. Sign in, click your avatar, then choose "Copy token" (or open Settings > User). Never share this token.
+        "midnightscene_api_key": "",
         # Seedpool CDN API key
         "seedpool_cdn_api": "",
         # ShareX-style image host (IMageHosting) token
@@ -48,7 +50,7 @@ config = {
         "sharex_api_key": "",
 
         # Order of image hosts. primary host as first with others as backup
-        # Available image hosts: imgbb, ptpimg, imgbox, pixhost, lensdump, ptscreens, oeimg, dalexni, zipline, passtheimage, seedpool_cdn, sharex, lostimg, utppm
+        # Available image hosts: imgbb, ptpimg, imgbox, pixhost, lensdump, ptscreens, oeimg, dalexni, zipline, midnightscene, passtheimage, seedpool_cdn, sharex, lostimg, utppm
         "img_host_1": "imgbb",
         "img_host_2": "imgbox",
 

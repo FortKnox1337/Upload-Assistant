@@ -15,6 +15,11 @@ import httpx
 from src.cleanup import cleanup_manager
 from src.console import console
 
+IMDB_HEADERS = {
+    "Content-Type": "application/json",
+    "Referer": "https://www.imdb.com/",
+}
+
 anitopy_parse_fn: Any = cast(Any, anitopy).parse
 guessit_module: Any = cast(Any, guessit)
 GuessitFn = Callable[[str, Optional[dict[str, Any]]], dict[str, Any]]
@@ -273,7 +278,7 @@ class ImdbManager:
                 response = await client.post(
                     "https://api.graphql.imdb.com/",
                     json=query,
-                    headers={"Content-Type": "application/json"},
+                    headers=IMDB_HEADERS,
                     timeout=10,
                 )
                 response.raise_for_status()
@@ -378,7 +383,6 @@ class ImdbManager:
                         'attributes': attribute_texts
                     }
 
-            imdb_info['edition_count'] = len(edition_list)
             imdb_info['editions'] = ', '.join(edition_list)
 
         akas_edges = cast(list[Mapping[str, Any]], self.safe_get(title_data, ['akas', 'edges'], default=[]))
@@ -576,7 +580,7 @@ class ImdbManager:
 
             try:
                 async with httpx.AsyncClient() as client:
-                    response = await client.post(url, json=query, headers={"Content-Type": "application/json"}, timeout=10)
+                    response = await client.post(url, json=query, headers=IMDB_HEADERS, timeout=10)
                     response.raise_for_status()
                     data = response.json()
             except Exception as e:
@@ -950,7 +954,7 @@ class ImdbManager:
                 response = await client.post(
                     "https://api.graphql.imdb.com/",
                     json=query,
-                    headers={"Content-Type": "application/json"},
+                    headers=IMDB_HEADERS,
                     timeout=10
                 )
                 response.raise_for_status()

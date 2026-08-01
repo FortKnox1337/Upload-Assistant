@@ -389,13 +389,19 @@ async def upload_image_task(args: Sequence[Any]) -> dict[str, Any]:
                 console.print(f"[red]Request failed with error: {e}")
                 return {'status': 'failed', 'reason': str(e)}
 
-        elif img_host == "zipline":
-            url = config['DEFAULT'].get('zipline_url')
-            api_key = config['DEFAULT'].get('zipline_api_key')
+        elif img_host in ("zipline", "midnightscene"):
+            if img_host == "midnightscene":
+                url = "https://img.midnightscene.cc/api/upload"
+                api_key = config['DEFAULT'].get('midnightscene_api_key')
+                host_name = "MidnightScene"
+            else:
+                url = config['DEFAULT'].get('zipline_url')
+                api_key = config['DEFAULT'].get('zipline_api_key')
+                host_name = "Zipline"
 
             if not url or not api_key:
-                console.print("[red]Error: Missing Zipline URL or API key in config.")
-                return {'status': 'failed', 'reason': 'Missing Zipline URL or API key'}
+                console.print(f"[red]Error: Missing {host_name} URL or API key in config.")
+                return {'status': 'failed', 'reason': f'Missing {host_name} URL or API key'}
 
             try:
                 async with aiofiles.open(image, "rb") as img_file:
@@ -409,8 +415,22 @@ async def upload_image_task(args: Sequence[Any]) -> dict[str, Any]:
                     response = await client.post(url, files={'file': (filename, file_bytes)}, headers=headers, timeout=timeout)
                     if response.status_code == 200:
                         response_data = response.json()
-                        if 'files' in response_data:
-                            img_url = response_data['files'][0]
+                        files = response_data.get('files')
+                        if isinstance(files, list) and files:
+                            # Zipline v3 returned a list of URL strings, whereas
+                            # current Zipline releases return file objects with a
+                            # ``url`` property.  Support both response formats.
+                            uploaded_file = files[0]
+                            if isinstance(uploaded_file, str):
+                                img_url = uploaded_file
+                            elif isinstance(uploaded_file, dict):
+                                img_url = uploaded_file.get('url')
+                            else:
+                                img_url = None
+
+                            if not isinstance(img_url, str) or not img_url:
+                                return {'status': 'failed', 'reason': f'No valid URL returned from {host_name}'}
+
                             raw_url = img_url.replace('/u/', '/r/')
                             web_url = img_url.replace('/u/', '/r/')
                             return {
@@ -420,10 +440,10 @@ async def upload_image_task(args: Sequence[Any]) -> dict[str, Any]:
                                 'web_url': web_url
                             }
                         else:
-                            return {'status': 'failed', 'reason': 'No valid URL returned from Zipline'}
+                            return {'status': 'failed', 'reason': f'No valid URL returned from {host_name}'}
 
                     else:
-                        return {'status': 'failed', 'reason': f"Zipline upload failed: {response.text}"}
+                        return {'status': 'failed', 'reason': f"{host_name} upload failed: {response.text}"}
             except httpx.TimeoutException:
                 console.print("[red]Request timed out. The server took too long to respond.")
                 return {'status': 'failed', 'reason': 'Request timed out'}

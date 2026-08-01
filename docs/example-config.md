@@ -60,7 +60,7 @@ Important gotchas:
 ### Image host selection (priority list)
 Order matters: `img_host_1` is primary, later hosts are fallbacks.
 
-- `img_host_1`..`img_host_5` (str): Image host names. Valid examples include `imgbb`, `ptpimg`, `imgbox`, `pixhost`, `lensdump`, `ptscreens`, `onlyimage`, `dalexni`, `zipline`, `passtheimage`, `seedpool_cdn`, `lostimg`, `utppm`.
+- `img_host_1`..`img_host_5` (str): Image host names. Valid examples include `imgbb`, `ptpimg`, `imgbox`, `pixhost`, `lensdump`, `ptscreens`, `onlyimage`, `dalexni`, `zipline`, `midnightscene`, `passtheimage`, `seedpool_cdn`, `lostimg`, `utppm`.
 
 ### Image host credentials
 - `imgbb_api` (str): API key for imgbb.
@@ -70,8 +70,9 @@ Order matters: `img_host_1` is primary, later hosts are fallbacks.
 - `onlyimage_api` (str): API key for onlyimage.
 - `dalexni_api` (str): API key for dalexni.
 - `passtheima_ge_api` (str): API key for passtheimage.
-- `zipline_url` (str): Base URL for a Zipline instance.
+- `zipline_url` (str): Zipline upload endpoint, for example `https://zipline.example.com/api/upload`.
 - `zipline_api_key` (str): Zipline API key.
+- `midnightscene_api_key` (str): MidnightScene Zipline API token. Retrieve it from the account menu's **Copy token** button or **Settings → User**; never share it.
 - `seedpool_cdn_api` (str): Seedpool CDN API key.
 - `lostimg_api` (str): API key for Lostimg.
 

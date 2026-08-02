@@ -127,6 +127,7 @@ class TrackerDataManager:
                     'otw': 'OTW',
                     'yus': 'YUS',
                     'dp': 'DP',
+                    'nq': 'NQ',
                     'ptp': 'PTP',
                 }
             else:
@@ -136,6 +137,7 @@ class TrackerDataManager:
                     'sp': 'SP',
                     'otw': 'OTW',
                     'dp': 'DP',
+                    'nq': 'NQ',
                     'yus': 'YUS',
                     'rf': 'RF',
                     'oe': 'OE',
@@ -499,5 +501,4 @@ class TrackerDataManager:
 
                     if meta.get('distributor') and not had_distributor and meta.get('debug', False):
                         console.print(f"[green]Found distributor '{meta['distributor']}' from {tracker_name}[/green]")
-
 

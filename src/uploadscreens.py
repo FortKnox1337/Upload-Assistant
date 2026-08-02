@@ -227,7 +227,7 @@ async def upload_image_task(args: Sequence[Any]) -> dict[str, Any]:
 
                     img_url = response_data['image']['medium']['url']
                     raw_url = response_data['image']['url']
-                    web_url = response_data['image']['url_viewer']
+                    web_url = response_data['image']['url']
 
                     if meta['debug']:
                         console.print(f"[green]Image URLs: img_url={img_url}, raw_url={raw_url}, web_url={web_url}")

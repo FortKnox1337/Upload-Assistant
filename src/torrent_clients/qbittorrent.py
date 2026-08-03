@@ -1166,7 +1166,7 @@ class QbittorrentClientMixin:
             return torrent_name.lower() == file_name.lower() or torrent_name.lower() == meta['uuid'].lower()
         return torrent_name.lower() == meta['uuid'].lower()
 
-    def _extract_tracker_matches(self, torrent: Any, tracker_patterns: dict[str, dict[str, str]], tracker_priority: list[str], has_working_tracker: bool, meta: dict[str, Any]) -> tuple[list[dict[str, Any]], bool]:
+    def _extract_tracker_matches(self, torrent: Any, tracker_patterns: dict[str, dict[str, Any]], tracker_priority: list[str], has_working_tracker: bool, meta: dict[str, Any]) -> tuple[list[dict[str, Any]], bool]:
         tracker_found = False
         tracker_id_matches: list[dict[str, Any]] = []
 
@@ -1175,7 +1175,10 @@ class QbittorrentClientMixin:
             if not tracker_info:
                 continue
 
-            if tracker_info["url"] in torrent.comment and has_working_tracker:
+            tracker_urls = tracker_info.get("urls")
+            if tracker_urls is None:
+                tracker_urls = [tracker_info["url"]]
+            if any(url in torrent.comment for url in tracker_urls) and has_working_tracker:
                 match = re.search(tracker_info["pattern"], torrent.comment)
                 if match:
                     tracker_id_value = match.group(1)
@@ -1253,10 +1256,11 @@ class QbittorrentClientMixin:
                 'otw': {"url": "https://oldtoons.world", "pattern": r'/(\d+)$'},
                 'yus': {"url": "https://yu-scene.net", "pattern": r'/(\d+)$'},
                 'dp': {"url": "https://darkpeers.org", "pattern": r'/(\d+)$'},
+                'nq': {"urls": ["https://nordicq.cc", "https://nordicq.info", "https://nordicq.org"], "pattern": r'/(\d+)$'},
                 'sp': {"url": "https://seedpool.org", "pattern": r'/(\d+)$'},
             }
 
-            tracker_priority = ['aither', 'ulcx', 'lst', 'blu', 'oe', 'btn', 'bhd', 'huno', 'hdb', 'rf', 'otw', 'yus', 'dp', 'sp', 'ptp']
+            tracker_priority = ['aither', 'ulcx', 'lst', 'blu', 'oe', 'btn', 'bhd', 'huno', 'hdb', 'rf', 'otw', 'yus', 'dp', 'nq', 'sp', 'ptp']
 
             if proxy_url:
                 try:
@@ -1839,6 +1843,7 @@ async def match_tracker_url(tracker_urls: list[str], meta: dict[str, Any]) -> No
         'mns': ["https://midnightscene.cc"],
         'mtv': ["tracker.morethantv"],
         'nbl': ["tracker.nebulance"],
+        'nq': ["https://nordicq.cc", "https://nordicq.info", "https://nordicq.org"],
         'oe': ["https://onlyencodes.cc"],
         'otw': ["https://oldtoons.world"],
         'pg': ["https://t.peergarden.org"],

@@ -2108,10 +2108,8 @@ if __name__ == "__main__":
         signal.signal(signal.SIGTERM, _handle_shutdown_signal)
 
     try:
-        # Use ProactorEventLoop for Windows subprocess handling
-        if sys.platform == "win32":
-            asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
-
+        # Windows has used ProactorEventLoop by default since Python 3.8,
+        # so asyncio.run() provides subprocess support without a deprecated policy override.
         asyncio.run(main())  # Ensures proper loop handling and cleanup
     except (KeyboardInterrupt, SystemExit):
         if not _shutdown_requested:

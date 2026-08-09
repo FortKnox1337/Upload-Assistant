@@ -13,6 +13,7 @@ from src.trackers.UNIT3D import UNIT3D
 
 
 class NQ(UNIT3D):
+    KNOWN_MEDIA_EXTENSIONS = frozenset({'.avi', '.mkv', '.mp4', '.ts'})
     NORDIC_LANGUAGE_TOKENS = frozenset({
         'da', 'dan', 'danish',
         'fi', 'fin', 'finnish',
@@ -75,8 +76,26 @@ class NQ(UNIT3D):
         )
         return False
 
+    @classmethod
+    def _release_name_source(cls, meta: dict[str, Any]) -> str:
+        filelist = meta.get('filelist')
+        if not meta.get('is_disc') and isinstance(filelist, list) and len(filelist) == 1:
+            media_path = filelist[0]
+            if isinstance(media_path, str) and media_path.strip():
+                source_name = os.path.basename(media_path)
+            else:
+                source_name = ''
+        else:
+            source_name = ''
+
+        if not source_name:
+            source_name = os.path.basename(str(meta.get('uuid') or meta.get('name') or ''))
+
+        stem, extension = os.path.splitext(source_name)
+        return stem if extension.casefold() in cls.KNOWN_MEDIA_EXTENSIONS else source_name
+
     async def get_name(self, meta: dict[str, Any]) -> dict[str, str]:
-        name = os.path.splitext(str(meta.get('uuid', '')))[0]
+        name = self._release_name_source(meta)
         name = name.replace(' ', '.')
 
         name = name.translate(str.maketrans({

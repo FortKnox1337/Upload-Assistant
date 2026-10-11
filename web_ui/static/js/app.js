@@ -1,3 +1,22 @@
+const parseUploadPaths = (text) => {
+  const seen = new Set();
+  return text.split(/\r?\n/).flatMap((line, index) => {
+    let path = line.trim();
+    if (
+      path.length >= 2 &&
+      ((path.startsWith('"') && path.endsWith('"')) ||
+        (path.startsWith("'") && path.endsWith("'")))
+    ) {
+      path = path.slice(1, -1);
+    }
+    if (!path || seen.has(path)) return [];
+    seen.add(path);
+    return [{ path, line: index + 1, args: "" }];
+  });
+};
+
+const getPreviewLanguageFlag = window.getUAPreviewLanguageFlag;
+
 const { useState, useRef, useEffect, useLayoutEffect, useCallback } = React;
 const THEME_KEY = "ua_config_theme";
 const LEFT_SIDEBAR_WIDTH_KEY = "ua_webui_left_sidebar_width_v2";
@@ -1066,6 +1085,10 @@ const TerminalIcon = () => (
   <LucideIcon name="square-terminal" className="w-5 h-5" />
 );
 
+const DescriptionIcon = () => (
+  <LucideIcon name="text-initial" className="w-5 h-5" />
+);
+
 const PaletteIcon = () => <WebUiIcon name="palette" />;
 
 const SettingsIcon = () => <WebUiIcon name="config" />;
@@ -1504,60 +1527,60 @@ const RefreshIcon = () => <LucideIcon name="refresh-cw" className="w-4 h-4" />;
 
 const metadataProviderStyles = {
   tmdb: {
-    light: "border-[#06B4E2] bg-transparent text-[#067A98]",
-    dark: "border-[#06B4E2]/70 bg-transparent text-[#B9F3FF]",
+    light: "border-[#06B4E2]/70 bg-[#06B4E2]/10 text-[#067A98]",
+    dark: "border-[#06B4E2]/60 bg-[#06B4E2]/20 text-[#B9F3FF]",
   },
   imdb: {
-    light: "border-[#F5C518] bg-transparent text-[#6F5700]",
-    dark: "border-[#F5C518]/70 bg-transparent text-[#FFF3B5]",
+    light: "border-[#F5C518]/70 bg-[#F5C518]/10 text-[#6F5700]",
+    dark: "border-[#F5C518]/60 bg-[#F5C518]/20 text-[#FFF3B5]",
   },
   tvdb: {
-    light: "border-[#6CD591] bg-transparent text-[#2F7D49]",
-    dark: "border-[#6CD591]/70 bg-transparent text-[#D9F9E4]",
+    light: "border-[#6CD591]/70 bg-[#6CD591]/10 text-[#2F7D49]",
+    dark: "border-[#6CD591]/60 bg-[#6CD591]/20 text-[#D9F9E4]",
   },
   tvmaze: {
-    light: "border-[#6EC4BA] bg-transparent text-[#2E7B73]",
-    dark: "border-[#6EC4BA]/70 bg-transparent text-[#D4F4EF]",
+    light: "border-[#6EC4BA]/70 bg-[#6EC4BA]/10 text-[#2E7B73]",
+    dark: "border-[#6EC4BA]/60 bg-[#6EC4BA]/20 text-[#D4F4EF]",
   },
   mal: {
-    light: "border-[#2E51A1] bg-transparent text-[#2E51A1]",
-    dark: "border-[#2E51A1]/75 bg-transparent text-[#C9D6F4]",
+    light: "border-[#2E51A1]/70 bg-[#2E51A1]/10 text-[#2E51A1]",
+    dark: "border-[#2E51A1]/60 bg-[#2E51A1]/20 text-[#C9D6F4]",
   },
   douban: {
-    light: "border-[#007610] bg-transparent text-[#007610]",
-    dark: "border-[#007610]/75 bg-transparent text-[#B9F2C2]",
+    light: "border-[#007610]/70 bg-[#007610]/10 text-[#007610]",
+    dark: "border-[#007610]/60 bg-[#007610]/20 text-[#B9F2C2]",
   },
   igdb: {
-    light: "border-[#9147FF] bg-transparent text-[#9147FF]",
-    dark: "border-[#9147FF]/75 bg-transparent text-[#E2D2FF]",
+    light: "border-[#9147FF]/70 bg-[#9147FF]/10 text-[#9147FF]",
+    dark: "border-[#9147FF]/60 bg-[#9147FF]/20 text-[#E2D2FF]",
   },
   steam: {
-    light: "border-slate-300 bg-transparent text-slate-900",
-    dark: "border-slate-700 bg-transparent text-slate-100",
+    light: "border-sky-600/80 bg-sky-600/15 text-sky-900",
+    dark: "border-sky-400/80 bg-sky-500/30 text-sky-100",
   },
   google_books: {
-    light: "border-green-300 bg-transparent text-green-900",
-    dark: "border-green-900/80 bg-transparent text-green-100",
+    light: "border-green-300/70 bg-green-300/10 text-green-900",
+    dark: "border-green-900/60 bg-green-900/20 text-green-100",
   },
   openlibrary: {
-    light: "border-orange-300 bg-transparent text-orange-900",
-    dark: "border-orange-900/80 bg-transparent text-orange-100",
+    light: "border-orange-300/70 bg-orange-300/10 text-orange-900",
+    dark: "border-orange-900/60 bg-orange-900/20 text-orange-100",
   },
   audible: {
-    light: "border-[#F7991C] bg-transparent text-[#9A4F00]",
-    dark: "border-[#F7991C]/75 bg-transparent text-[#FFD6A3]",
+    light: "border-[#F7991C]/70 bg-[#F7991C]/10 text-[#9A4F00]",
+    dark: "border-[#F7991C]/60 bg-[#F7991C]/20 text-[#FFD6A3]",
   },
   musicbrainz: {
-    light: "border-[#BA478F] bg-transparent text-[#7D205D]",
-    dark: "border-[#BA478F]/75 bg-transparent text-[#F4C7E4]",
+    light: "border-[#BA478F]/70 bg-[#BA478F]/10 text-[#7D205D]",
+    dark: "border-[#BA478F]/60 bg-[#BA478F]/20 text-[#F4C7E4]",
   },
   discogs: {
-    light: "border-slate-400 bg-transparent text-slate-900",
-    dark: "border-slate-500/80 bg-transparent text-slate-100",
+    light: "border-slate-400/70 bg-slate-400/10 text-slate-900",
+    dark: "border-slate-500/60 bg-slate-500/20 text-slate-100",
   },
   default: {
-    light: "border-gray-300 bg-transparent text-gray-900",
-    dark: "border-gray-700 bg-transparent text-gray-100",
+    light: "border-gray-300/70 bg-gray-300/10 text-gray-900",
+    dark: "border-gray-700/60 bg-gray-700/20 text-gray-100",
   },
 };
 
@@ -1614,7 +1637,7 @@ const renderMetadataProviderIcon = (key, isDarkMode) => {
       <img
         src={iconSrc}
         alt={iconAsset.alt}
-        className={`block h-3.5 w-auto max-w-[3.75rem] object-contain ${
+        className={`block h-[0.7rem] w-auto max-w-[3rem] object-contain ${
           normalizedKey === "discogs" && !isDarkMode ? "invert" : ""
         }`}
       />
@@ -1623,12 +1646,12 @@ const renderMetadataProviderIcon = (key, isDarkMode) => {
 
   switch (key) {
     case "google_books":
-      return <LucideIcon name="book-open" className="w-4 h-4" />;
+      return <LucideIcon name="book-open" className="w-[0.8rem] h-[0.8rem]" />;
     case "openlibrary":
-      return <LucideIcon name="book-open" className="w-4 h-4" />;
+      return <LucideIcon name="book-open" className="w-[0.8rem] h-[0.8rem]" />;
     default:
       return (
-        <span className="text-[11px] font-black tracking-wide">
+        <span className="text-[8.8px] font-black tracking-wide">
           {String(key || "META")
             .slice(0, 4)
             .toUpperCase()}
@@ -1696,6 +1719,8 @@ function AudionutsUAGUI() {
   ]);
 
   const [selectedPath, setSelectedPath] = useState("");
+  const [manualPathsText, setManualPathsText] = useState(null);
+  const [pathInputError, setPathInputError] = useState("");
   const [, setSelectedName] = useState("");
   const [customArgs, setCustomArgs] = useState("");
   const [argumentPresets, setArgumentPresets] = useState([]);
@@ -3513,7 +3538,7 @@ function AudionutsUAGUI() {
     }
   }, [hasDescFile]);
   useEffect(() => {
-    storage.set(THEME_KEY, isDarkMode ? "dark" : "light");
+    window.setUAThemeMode(isDarkMode);
   }, [isDarkMode]);
 
   useEffect(() => {
@@ -3645,51 +3670,49 @@ function AudionutsUAGUI() {
   };
 
   const handleToggleSelectAll = () => {
+    setManualPathsText(null);
+    setPathInputError("");
     const visible = getVisiblePaths();
     if (visible.length === 0) return;
 
     const allSelected = visible.every((p) =>
       selectedPaths.some((x) => x.path === p),
     );
-    if (allSelected) {
-      setSelectedPaths((prev) => prev.filter((p) => !visible.includes(p.path)));
-    } else {
-      setSelectedPaths((prev) => {
-        const next = [...prev];
-        visible.forEach((p) => {
-          if (!next.some((x) => x.path === p)) next.push({ path: p, args: "" });
-        });
-        return next;
+    const next = allSelected
+      ? selectedPaths.filter((p) => !visible.includes(p.path))
+      : [...selectedPaths];
+    if (!allSelected) {
+      visible.forEach((p) => {
+        if (!next.some((x) => x.path === p)) next.push({ path: p, args: "" });
       });
     }
+    setSelectedPaths(next);
+    setSelectedPath(next[0]?.path || "");
   };
 
   const handleTogglePathSelect = (path) => {
-    setSelectedPaths((prev) => {
-      const isSelected = prev.some((x) => x.path === path);
-      let next;
-      if (isSelected) {
-        next = prev.filter((p) => p.path !== path);
-      } else {
-        next = [...prev, { path, args: "" }];
-      }
-      if (next.length === 1) {
-        setSelectedPath(next[0].path);
-        const findName = (nodes) => {
-          for (const node of nodes) {
-            if (node.path === next[0].path) return node.name;
-            if (node.children) {
-              const res = findName(node.children);
-              if (res) return res;
-            }
+    setManualPathsText(null);
+    setPathInputError("");
+    const isSelected = selectedPaths.some((x) => x.path === path);
+    const next = isSelected
+      ? selectedPaths.filter((p) => p.path !== path)
+      : [...selectedPaths, { path, args: "" }];
+    setSelectedPaths(next);
+    setSelectedPath(next[0]?.path || "");
+    if (next.length === 1) {
+      const findName = (nodes) => {
+        for (const node of nodes) {
+          if (node.path === next[0].path) return node.name;
+          if (node.children) {
+            const res = findName(node.children);
+            if (res) return res;
           }
-          return "";
-        };
-        const name = findName(directories) || next[0].path.split(/[/\\]/).pop();
-        setSelectedName(name);
-      }
-      return next;
-    });
+        }
+        return "";
+      };
+      const name = findName(directories) || next[0].path.split(/[/\\]/).pop();
+      setSelectedName(name);
+    }
   };
 
   const handleUpdateItemArgs = (path, newArgs) => {
@@ -3848,7 +3871,12 @@ function AudionutsUAGUI() {
           </label>
           {selectedPaths.length > 0 && (
             <button
-              onClick={() => setSelectedPaths([])}
+              onClick={() => {
+                setSelectedPaths([]);
+                setSelectedPath("");
+                setManualPathsText(null);
+                setPathInputError("");
+              }}
               className="ua-accent-link font-semibold"
             >
               Clear Selection
@@ -3916,154 +3944,170 @@ function AudionutsUAGUI() {
     );
   };
 
+  const handlePathInputChange = (text) => {
+    setManualPathsText(text);
+    setPathInputError("");
+    const previousArgs = new Map(
+      selectedPaths.map((item) => [item.path, item.args]),
+    );
+    const items = parseUploadPaths(text).map((item) => ({
+      ...item,
+      args: previousArgs.get(item.path) || "",
+    }));
+    setSelectedPaths(items);
+    setSelectedPath(items[0]?.path || "");
+    setSelectedName(items[0]?.path.split(/[/\\]/).pop() || "");
+  };
+
   const renderSelectedPathOrQueue = (isMobileView = false) => {
+    const pathText =
+      manualPathsText !== null
+        ? manualPathsText
+        : selectedPaths.length
+          ? selectedPaths.map((item) => item.path).join("\n")
+          : selectedPath;
+    const pathEditor = (
+      <div
+        className={`p-3 border rounded-lg ${isDarkMode ? "bg-gray-700 border-gray-600" : "bg-blue-50 border-blue-200"}`}
+      >
+        <label
+          htmlFor="upload-paths"
+          className={`block text-xs font-semibold mb-1 ${isDarkMode ? "text-gray-300" : "text-gray-600"}`}
+        >
+          Upload paths:
+        </label>
+        <textarea
+          id="upload-paths"
+          value={pathText}
+          onChange={(event) => handlePathInputChange(event.target.value)}
+          rows={Math.min(6, Math.max(2, pathText.split("\n").length))}
+          placeholder="Paste a server file or folder path, one per line"
+          disabled={isExecuting}
+          spellCheck={false}
+          aria-invalid={!!pathInputError}
+          aria-describedby={
+            pathInputError
+              ? "upload-paths-help upload-paths-error"
+              : "upload-paths-help"
+          }
+          className={`w-full px-2 py-2 text-sm font-mono border rounded-lg resize-y ${isDarkMode ? "bg-gray-800 border-gray-600 text-white placeholder-gray-400" : "bg-white border-gray-300 text-gray-900"}`}
+        />
+        <p
+          id="upload-paths-help"
+          className={`text-xs mt-1 ${isDarkMode ? "text-gray-300" : "text-gray-600"}`}
+        >
+          Enter adds a line. Multiple paths create a queue. Only permitted
+          server folders are accepted (maximum 1000 paths).
+        </p>
+        {pathInputError && (
+          <p
+            id="upload-paths-error"
+            role="alert"
+            className="text-xs text-red-500 mt-1"
+          >
+            {pathInputError}
+          </p>
+        )}
+        {isMobileView && (
+          <button
+            onClick={() => setActivePanel("files")}
+            className="ua-accent-link text-xs mt-2"
+          >
+            Browse files
+          </button>
+        )}
+      </div>
+    );
     if (selectedPaths.length > 1) {
       return (
-        <div
-          className={`p-4 rounded-lg border ${
-            isDarkMode
-              ? "bg-gray-800 border-gray-700"
-              : "bg-white border-gray-200 shadow-sm"
-          } space-y-3`}
-        >
-          <div className="flex items-center justify-between border-b pb-2 border-gray-700">
-            <h3
-              className={`${isMobileView ? "text-xs" : "text-sm"} font-bold ${
-                isDarkMode ? "text-white" : "text-gray-800"
-              } flex items-center gap-2`}
-            >
-              <span className="flex h-2 w-2 relative">
-                {isExecuting && (
-                  <span className="ua-accent-indicator animate-ping absolute inline-flex h-full w-full rounded-full opacity-75"></span>
-                )}
-                <span
-                  className={`relative inline-flex rounded-full h-2 w-2 ${isExecuting ? "ua-accent-indicator" : "bg-gray-400"}`}
-                ></span>
-              </span>
-              Execution Queue ({selectedPaths.length} items)
-            </h3>
-          </div>
-          <div className="max-h-60 overflow-y-auto space-y-3 pr-1 font-mono text-[11px]">
-            {selectedPaths.map((item, idx) => {
-              const name = item.path.split(/[/\\]/).pop() || item.path;
+        <>
+          {pathEditor}
+          <div
+            className={`p-4 rounded-lg border ${
+              isDarkMode
+                ? "bg-gray-800 border-gray-700"
+                : "bg-white border-gray-200 shadow-sm"
+            } space-y-3`}
+          >
+            <div className="flex items-center justify-between border-b pb-2 border-gray-700">
+              <h3
+                className={`${isMobileView ? "text-xs" : "text-sm"} font-bold ${
+                  isDarkMode ? "text-white" : "text-gray-800"
+                } flex items-center gap-2`}
+              >
+                <span className="flex h-2 w-2 relative">
+                  {isExecuting && (
+                    <span className="ua-accent-indicator animate-ping absolute inline-flex h-full w-full rounded-full opacity-75"></span>
+                  )}
+                  <span
+                    className={`relative inline-flex rounded-full h-2 w-2 ${isExecuting ? "ua-accent-indicator" : "bg-gray-400"}`}
+                  ></span>
+                </span>
+                Execution Queue ({selectedPaths.length} items)
+              </h3>
+            </div>
+            <div className="max-h-60 overflow-y-auto space-y-3 pr-1 font-mono text-[11px]">
+              {selectedPaths.map((item, idx) => {
+                const name = item.path.split(/[/\\]/).pop() || item.path;
 
-              return (
-                <div
-                  key={item.path}
-                  className={`flex flex-col gap-1.5 p-2 rounded border ${
-                    isDarkMode
-                      ? "bg-gray-900 border-gray-800"
-                      : "bg-gray-50 border-gray-200"
-                  }`}
-                >
-                  <div className="flex items-center justify-between min-w-0">
-                    <span
-                      className={`truncate font-semibold ${
-                        isDarkMode ? "text-gray-200" : "text-gray-800"
-                      }`}
-                      title={item.path}
-                    >
-                      {idx + 1}. {name}
-                    </span>
-                    <button
-                      onClick={() => handleTogglePathSelect(item.path)}
-                      className="text-red-500 hover:text-red-400 font-bold ml-2 text-xs font-sans"
-                      title="Remove from queue"
-                      disabled={isExecuting}
-                    >
-                      <LucideIcon name="x" className="h-3 w-3" />
-                    </button>
+                return (
+                  <div
+                    key={item.path}
+                    className={`flex flex-col gap-1.5 p-2 rounded border ${
+                      isDarkMode
+                        ? "bg-gray-900 border-gray-800"
+                        : "bg-gray-50 border-gray-200"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between min-w-0">
+                      <span
+                        className={`truncate font-semibold ${
+                          isDarkMode ? "text-gray-200" : "text-gray-800"
+                        }`}
+                        title={item.path}
+                      >
+                        {idx + 1}. {name}
+                      </span>
+                      <button
+                        onClick={() => handleTogglePathSelect(item.path)}
+                        className="text-red-500 hover:text-red-400 font-bold ml-2 text-xs font-sans"
+                        title="Remove from queue"
+                        disabled={isExecuting}
+                      >
+                        <LucideIcon name="x" className="h-3 w-3" />
+                      </button>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label
+                        className={`text-[10px] ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}
+                      >
+                        Line Arguments:
+                      </label>
+                      <input
+                        type="text"
+                        value={item.args}
+                        onChange={(e) =>
+                          handleUpdateItemArgs(item.path, e.target.value)
+                        }
+                        placeholder="e.g. --tmdb audiobook/12345 --anon"
+                        className={`w-full px-2 py-1 text-xs border rounded-lg ${
+                          isDarkMode
+                            ? "bg-gray-800 border-gray-700 text-white placeholder-gray-500"
+                            : "bg-white border-gray-300 text-gray-900 placeholder-gray-400"
+                        }`}
+                        disabled={isExecuting}
+                      />
+                    </div>
                   </div>
-                  <div className="flex flex-col gap-1">
-                    <label
-                      className={`text-[10px] ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}
-                    >
-                      Line Arguments:
-                    </label>
-                    <input
-                      type="text"
-                      value={item.args}
-                      onChange={(e) =>
-                        handleUpdateItemArgs(item.path, e.target.value)
-                      }
-                      placeholder="e.g. --tmdb audiobook/12345 --anon"
-                      className={`w-full px-2 py-1 text-xs border rounded-lg ${
-                        isDarkMode
-                          ? "bg-gray-800 border-gray-700 text-white placeholder-gray-500"
-                          : "bg-white border-gray-300 text-gray-900 placeholder-gray-400"
-                      }`}
-                      disabled={isExecuting}
-                    />
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
-        </div>
+        </>
       );
     }
 
-    if (isMobileView) {
-      return selectedPath ? (
-        <div
-          className={`p-2 rounded-lg ${isDarkMode ? "bg-gray-700 border-gray-600" : "bg-blue-50 border-blue-200"} border`}
-        >
-          <div className="flex items-center justify-between">
-            <p
-              className={`text-xs font-semibold ${isDarkMode ? "text-gray-300" : "text-gray-600"}`}
-            >
-              Selected:
-            </p>
-            <button
-              onClick={() => setActivePanel("files")}
-              className={`text-xs px-2 py-0.5 rounded ${isDarkMode ? "bg-gray-600 text-gray-200 hover:bg-gray-500" : "bg-blue-100 text-blue-700 hover:bg-blue-200"}`}
-            >
-              Browse
-            </button>
-          </div>
-          <p
-            className={`text-xs ${isDarkMode ? "text-white" : "text-gray-800"} break-all font-mono mt-1`}
-          >
-            {selectedPath}
-          </p>
-        </div>
-      ) : (
-        <button
-          onClick={() => setActivePanel("files")}
-          className={`ua-accent-dropzone w-full p-3 rounded-lg border-2 border-dashed text-center inline-flex items-center justify-center ${isDarkMode ? "border-gray-600 text-gray-400" : "border-gray-300 text-gray-500"}`}
-        >
-          <FolderIcon />
-          <span className="text-sm ml-2">Tap to select a file or folder</span>
-        </button>
-      );
-    }
-
-    return (
-      selectedPath && (
-        <div
-          className={`p-3 ${
-            isDarkMode
-              ? "bg-gray-700 border-gray-600"
-              : "bg-blue-50 border-blue-200"
-          } border rounded-lg`}
-        >
-          <p
-            className={`text-xs font-semibold ${
-              isDarkMode ? "text-gray-300" : "text-gray-600"
-            } mb-1`}
-          >
-            Selected Path:
-          </p>
-          <p
-            className={`text-sm ${
-              isDarkMode ? "text-white" : "text-gray-800"
-            } break-all font-mono`}
-          >
-            {selectedPath}
-          </p>
-        </div>
-      )
-    );
+    return pathEditor;
   };
 
   const collapseFileBrowser = () => {
@@ -4263,6 +4307,10 @@ function AudionutsUAGUI() {
       const parentPath =
         separatorIdx > 0 ? item.path.substring(0, separatorIdx) : "";
       const activateSearchResult = () => {
+        setManualPathsText(null);
+        setPathInputError("");
+        if (manualPathsText !== null || selectedPaths.length <= 1)
+          setSelectedPaths([]);
         setSelectedPath(item.path);
         setSelectedName(item.name);
         if (isMobile) setActivePanel("main");
@@ -4279,6 +4327,7 @@ function AudionutsUAGUI() {
               type="checkbox"
               aria-label={`Select ${item.type === "folder" ? "folder" : "file"} ${item.name}`}
               checked={selectedPaths.some((x) => x.path === item.path)}
+              onClick={(event) => event.stopPropagation()}
               onChange={(e) => {
                 e.stopPropagation();
                 handleTogglePathSelect(item.path);
@@ -4344,6 +4393,10 @@ function AudionutsUAGUI() {
         item.type === "folder";
       const rootFolderIndex = rootFolderPaths.indexOf(item.path);
       const activateTreeItem = () => {
+        setManualPathsText(null);
+        setPathInputError("");
+        if (manualPathsText !== null || selectedPaths.length <= 1)
+          setSelectedPaths([]);
         if (item.type === "folder") {
           toggleFolder(item.path);
         }
@@ -4420,6 +4473,7 @@ function AudionutsUAGUI() {
               type="checkbox"
               aria-label={`Select ${item.type === "folder" ? "folder" : "file"} ${item.name}`}
               checked={selectedPaths.some((x) => x.path === item.path)}
+              onClick={(event) => event.stopPropagation()}
               onChange={(e) => {
                 e.stopPropagation();
                 handleTogglePathSelect(item.path);
@@ -4646,7 +4700,8 @@ function AudionutsUAGUI() {
     });
   };
 
-  const executeSinglePath = async (path, newSessionId) => {
+  const executeSinglePath = async (path, newSessionId, itemArgs = "") => {
+    const executionArgs = [customArgs, itemArgs].filter(Boolean).join(" ");
     // Validate --descfile: must have a valid description file path
     if (hasDescFile) {
       if (!descFilePath) {
@@ -4695,7 +4750,7 @@ function AudionutsUAGUI() {
     if (lastFullHashRef) lastFullHashRef.current = "";
 
     appendSystemMessage("");
-    appendSystemMessage(`$ python upload.py "${path}" ${customArgs}`);
+    appendSystemMessage(`$ python upload.py "${path}" ${executionArgs}`);
     appendSystemMessage("Starting execution...");
 
     let localController = null;
@@ -4710,7 +4765,7 @@ function AudionutsUAGUI() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           path: path,
-          args: customArgs,
+          args: executionArgs,
           session_id: newSessionId,
         }),
         signal: controller.signal,
@@ -4864,77 +4919,57 @@ function AudionutsUAGUI() {
   };
 
   const executeCommand = async () => {
-    // Run before any await, including queue creation, to retain user activation.
     window.uaPromptSound?.unlock();
-    if (selectedPaths.length > 1) {
-      setIsExecuting(true);
-      const rootContainer = richOutputRef.current;
-      if (rootContainer) {
-        rootContainer.innerHTML = "";
-      }
-
-      try {
-        const response = await apiFetch(`${API_BASE}/save_queue`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ items: selectedPaths }),
-        });
-
-        if (!response.ok) {
-          const errText = await response.text();
-          appendSystemMessage(
-            `Error: Failed to generate queue file: ${errText}`,
-            "error",
-          );
-          setIsExecuting(false);
-          return;
-        }
-
-        const data = await response.json();
-        if (!data.success || !data.path) {
-          appendSystemMessage(
-            `Error: Failed to generate queue file: ${data.error || "Unknown error"}`,
-            "error",
-          );
-          setIsExecuting(false);
-          return;
-        }
-
-        const newSessionId = "session_" + Date.now();
-        await executeSinglePath(data.path, newSessionId);
-      } catch (error) {
-        appendSystemMessage(
-          `Error generating queue: ${error.message}`,
-          "error",
-        );
-      } finally {
-        setIsExecuting(false);
-        setSessionId("");
-      }
+    if (isExecuting) return;
+    const previousArgs = new Map(
+      selectedPaths.map((item) => [item.path, item.args]),
+    );
+    const items =
+      manualPathsText !== null
+        ? parseUploadPaths(manualPathsText).map((item) => ({
+            ...item,
+            args: previousArgs.get(item.path) || "",
+          }))
+        : selectedPaths.length
+          ? selectedPaths
+          : selectedPath
+            ? [{ path: selectedPath, args: "" }]
+            : [];
+    if (!items.length || items.length > 1000) {
+      const error = items.length
+        ? "Maximum 1000 paths per upload"
+        : "Enter or select a file or folder first";
+      setPathInputError(error);
       return;
     }
-
-    const path =
-      selectedPaths.length === 1 ? selectedPaths[0].path : selectedPath;
-    if (!path) {
-      appendSystemMessage(
-        "Error: Please select a file or folder first",
-        "error",
-      );
-      return;
-    }
-
-    const rootContainer = richOutputRef.current;
+    setPathInputError("");
     setIsExecuting(true);
-    if (rootContainer) {
-      rootContainer.innerHTML = "";
+    try {
+      const response = await apiFetch(`${API_BASE}/save_queue`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items, return_single_path: items.length === 1 }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success || !data.path) {
+        const line = items[data.item - 1]?.line;
+        const error = `${line ? `Line ${line}: ` : ""}${data.error || "Could not validate upload paths"}`;
+        setPathInputError(error);
+        return;
+      }
+      const rootContainer = richOutputRef.current;
+      if (rootContainer) rootContainer.innerHTML = "";
+      await executeSinglePath(
+        data.path,
+        "session_" + Date.now(),
+        items.length === 1 ? items[0].args : "",
+      );
+    } catch (error) {
+      setPathInputError(`Could not prepare upload: ${error.message}`);
+    } finally {
+      setIsExecuting(false);
+      setSessionId("");
     }
-
-    const newSessionId = "session_" + Date.now();
-    await executeSinglePath(path, newSessionId);
-
-    setIsExecuting(false);
-    setSessionId("");
   };
 
   const clearTerminal = async () => {
@@ -5783,8 +5818,9 @@ function AudionutsUAGUI() {
       ? media.genres.filter(Boolean).slice(0, 4)
       : [];
     const panelPadding = compact ? "p-3" : "p-4";
-    const titleSize = compact ? "text-base" : "text-lg";
+    const titleSize = compact ? "text-[1.4rem]" : "text-[1.575rem]";
     const posterHeight = compact ? "h-64" : "h-80";
+    const backdropUrl = media?.backdrop_url || media?.poster_url;
     const overviewText =
       category === "TV"
         ? media?.episode_overview || media?.overview
@@ -5806,38 +5842,63 @@ function AudionutsUAGUI() {
 
     const renderMediaTrack = (track, kind) => {
       const badges = [];
+      const languageFlag = getPreviewLanguageFlag(
+        track.language,
+        track.language_code,
+      );
 
-      if (track.format) badges.push(track.format);
-      if (kind === "audio" && track.channels) badges.push(track.channels);
-      if (kind === "audio" && track.bitrate) badges.push(track.bitrate);
-      if (track.default) badges.push("Default");
-      if (track.forced) badges.push("Forced");
-      if (track.hearing_impaired) badges.push("SDH/HI");
-      if (track.commentary) badges.push("Commentary");
+      if (track.format) badges.push({ label: track.format });
+      if (kind === "audio" && track.channels)
+        badges.push({ label: track.channels });
+      if (kind === "audio" && track.bitrate)
+        badges.push({ label: track.bitrate });
+      if (track.default) badges.push({ label: "Default", status: true });
+      if (track.forced) badges.push({ label: "Forced", status: true });
+      if (track.hearing_impaired)
+        badges.push({ label: "SDH/HI", status: true });
+      if (track.commentary) badges.push({ label: "Commentary", status: true });
+      const languageLabel =
+        track.language_code || track.language || "Unknown language";
 
       return (
         <div
           key={`${kind}-${track.index}`}
-          className="ua-processing-track rounded-lg border px-3 py-2"
+          className="ua-processing-track rounded-xl border px-3 py-3"
+          data-default={Boolean(track.default)}
         >
           <div className="flex items-start gap-2">
-            <span className="ua-processing-muted shrink-0 font-mono text-xs">
+            <span className="ua-processing-track-index ua-processing-muted shrink-0 text-sm font-semibold">
               {track.index}.
             </span>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-sm font-semibold">
-                  {track.language || "Unknown language"}
+                <span className="ua-processing-track-language inline-flex items-center gap-2 text-sm font-semibold">
+                  {languageFlag && (
+                    <img
+                      src={languageFlag}
+                      alt=""
+                      aria-hidden="true"
+                      width="24"
+                      height="18"
+                      className="ua-language-flag shrink-0 object-contain"
+                    />
+                  )}
+                  {languageLabel}
                 </span>
                 {badges.map((badge, index) => (
                   <span
-                    key={`${badge}-${index}`}
-                    className="ua-accent-chip rounded border px-1.5 py-0.5 text-[10px]"
+                    key={`${badge.label}-${index}`}
+                    className={`ua-processing-track-badge rounded-md ${badge.status ? "ua-processing-track-status" : ""}`}
                   >
-                    {badge}
+                    {badge.label}
                   </span>
                 ))}
               </div>
+              {track.language && track.language !== languageLabel && (
+                <p className="ua-processing-muted mt-2 break-words text-xs">
+                  {track.language}
+                </p>
+              )}
               {track.title && (
                 <p className="ua-processing-muted mt-1 break-words text-xs">
                   {track.title}
@@ -5845,6 +5906,45 @@ function AudionutsUAGUI() {
               )}
             </div>
           </div>
+        </div>
+      );
+    };
+
+    const renderMediaTrackFlags = (tracks, kind) => {
+      const flags = tracks.flatMap((track, index) => {
+        const src = getPreviewLanguageFlag(track.language, track.language_code);
+        const language = String(track.language || "").trim();
+        const code = String(track.language_code || "").trim();
+        const label =
+          language &&
+          /[-_]/.test(code) &&
+          !language
+            .toLowerCase()
+            .replace(/_/g, "-")
+            .includes(code.toLowerCase().replace(/_/g, "-"))
+            ? `${language} (${code})`
+            : language || code;
+        return src ? [{ src, language: label, index }] : [];
+      });
+      if (flags.length === 0) return null;
+
+      return (
+        <div
+          role="group"
+          aria-label={`${kind === "audio" ? "Audio" : "Subtitle"} track languages`}
+          className="flex flex-wrap items-center gap-1.5 pb-2"
+        >
+          {flags.map((flag) => (
+            <img
+              key={`${kind}-${flag.index}`}
+              src={flag.src}
+              alt={flag.language}
+              title={flag.language}
+              width="24"
+              height="18"
+              className="ua-language-flag h-[18px] w-6 shrink-0 object-contain"
+            />
+          ))}
         </div>
       );
     };
@@ -5872,7 +5972,29 @@ function AudionutsUAGUI() {
         className="ua-processing-preview flex h-full flex-col"
       >
         <div className="flex-1 overflow-y-auto">
-          <div className="ua-processing-card min-h-full overflow-hidden">
+          <div
+            className="ua-processing-card min-h-full overflow-hidden"
+            style={{
+              "--ua-processing-artwork-height": compact ? "16rem" : "20rem",
+            }}
+          >
+            {backdropUrl && (
+              <div className="ua-processing-backdrop" aria-hidden="true">
+                <img
+                  src={backdropUrl}
+                  alt=""
+                  onError={(event) => {
+                    if (
+                      media?.poster_url &&
+                      event.currentTarget.getAttribute("src") !==
+                        media.poster_url
+                    ) {
+                      event.currentTarget.src = media.poster_url;
+                    }
+                  }}
+                />
+              </div>
+            )}
             {media?.poster_url ? (
               <div
                 className={`ua-processing-artwork relative flex w-full items-center justify-center ${posterHeight}`}
@@ -5937,7 +6059,10 @@ function AudionutsUAGUI() {
                 <h3
                   className={`ua-processing-title ${titleSize} font-bold leading-tight`}
                 >
-                  {previewTitle}
+                  {baseTitle}
+                  {media?.year && (
+                    <span className="ua-processing-year"> ({media.year})</span>
+                  )}
                 </h3>
                 {showOriginalTitle && (
                   <p className="ua-processing-muted mt-1 text-sm">
@@ -5957,17 +6082,17 @@ function AudionutsUAGUI() {
                       );
                       const content = (
                         <>
-                          <span className="inline-flex items-center justify-center min-w-[2.6rem] px-2 h-6 rounded-full">
+                          <span className="inline-flex shrink-0 items-center justify-center h-[1.2rem]">
                             {renderMetadataProviderIcon(source.key, isDarkMode)}
                           </span>
                           <span className="min-w-0">
-                            <span className="block text-[11px] font-semibold font-mono truncate">
+                            <span className="block text-[0.7rem] leading-4 font-bold tabular-nums truncate">
                               {source.value}
                             </span>
                           </span>
                         </>
                       );
-                      const sharedClassName = `inline-flex items-center gap-1.5 max-w-full rounded-full border px-2.5 py-1 transition-colors ${providerClass}`;
+                      const sharedClassName = `ua-processing-provider inline-flex items-center gap-2 max-w-full rounded-full border-[1.6px] px-[0.8rem] py-[0.3rem] transition-colors ${providerClass}`;
 
                       if (source.url) {
                         return (
@@ -6001,10 +6126,7 @@ function AudionutsUAGUI() {
               {genres.length > 0 && (
                 <div className="flex flex-wrap gap-2">
                   {genres.map((genre) => (
-                    <span
-                      key={genre}
-                      className="ua-accent-chip px-2 py-1 rounded-md border text-xs"
-                    >
+                    <span key={genre} className="ua-processing-genre">
                       {genre}
                     </span>
                   ))}
@@ -6063,6 +6185,9 @@ function AudionutsUAGUI() {
                       </span>
                     </button>
 
+                    {!showAudioTracks &&
+                      renderMediaTrackFlags(audioTracks, "audio")}
+
                     <button
                       type="button"
                       onClick={() => setShowSubtitleTracks((value) => !value)}
@@ -6096,6 +6221,8 @@ function AudionutsUAGUI() {
                         />
                       </span>
                     </button>
+                    {!showSubtitleTracks &&
+                      renderMediaTrackFlags(subtitleTracks, "subtitle")}
                   </div>
                 </section>
               )}
@@ -6305,7 +6432,7 @@ function AudionutsUAGUI() {
                     <h2
                       className={`text-base font-bold ${isDarkMode ? "text-white" : "text-gray-800"} flex items-center gap-2`}
                     >
-                      <FolderIcon />
+                      <LucideIcon name="folders" className="w-4 h-4" />
                       File Browser
                     </h2>
                     <div className="flex shrink-0 items-center gap-1">
@@ -6936,7 +7063,7 @@ function AudionutsUAGUI() {
               `Screens${executionScreenshots.length ? ` (${executionScreenshots.length})` : ""}`,
             )}
           {isExecuting &&
-            navButton("description", <TerminalIcon />, "Description")}
+            navButton("description", <DescriptionIcon />, "Description")}
         </div>
       </div>
     );
@@ -7069,7 +7196,7 @@ function AudionutsUAGUI() {
                     <h2
                       className={`text-lg font-bold ${isDarkMode ? "text-white" : "text-gray-800"} flex items-center gap-2`}
                     >
-                      <FolderIcon />
+                      <LucideIcon name="folders" className="w-4 h-4" />
                       File Browser
                     </h2>
                     <div className="flex shrink-0 items-center gap-1">
@@ -7338,7 +7465,7 @@ function AudionutsUAGUI() {
                       className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors flex-shrink-0 ${isDescriptionReviewOpen ? "ua-accent-action" : isDarkMode ? "bg-gray-700 hover:bg-gray-600 text-gray-100" : "bg-gray-100 hover:bg-gray-200 text-gray-700"}`}
                       title="Review and edit the base description"
                     >
-                      <TerminalIcon />
+                      <DescriptionIcon />
                       Description
                     </button>
                     <button

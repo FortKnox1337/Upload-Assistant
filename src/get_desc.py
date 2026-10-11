@@ -1488,12 +1488,12 @@ class DescriptionBuilder:
         screenshots: bool = True,
         tonemapped_header: bool = True,
         tv_info: bool = True,
-        ua_signature: bool = True,  # ci: ua_signature v4.5
+        ua_signature: bool = True,  # ci: ua_signature v4.6
         user_description: bool = True,
         music: bool = True,
         dynamic_hdr_plot: bool = True,
         approved_image_hosts: list[str] | None = None,
-        signature: str = "",  # ci: ua_signature v4.5
+        signature: str = "",  # ci: ua_signature v4.6
         desc_header: str = "",
     ) -> str:
         apply_saved_draft(meta)
@@ -1541,7 +1541,10 @@ class DescriptionBuilder:
         if logo:
             logo_url, logo_size = await self.get_logo_section(meta)
             if logo_url and logo_size:
-                desc_parts.append(f"[center][img={logo_size}]{logo_url}[/img][/center]\n")
+                if self.tracker == "TORRENTLEECH":
+                    desc_parts.append(f'<center><img src="{html.escape(logo_url, quote=True)}" width="{logo_size}"></center>\n')
+                else:
+                    desc_parts.append(f"[center][img={logo_size}]{logo_url}[/img][/center]\n")
 
         # Mediainfo / BDInfo section for trackers like BJSHARE
         if mediainfo:
@@ -1635,6 +1638,7 @@ class DescriptionBuilder:
                 "PTFANS",
                 "PTGTK",
                 "PTZONE",
+                "QINGWA",
                 "RAILGUNPT",
                 "XINGYUNGEPT",
                 "NEXUSPHP",
@@ -1750,7 +1754,7 @@ class DescriptionBuilder:
                 await description_file.write(self.tracker_specific_formats(self.tracker, "\n".join(part for part in (description_str, ((signature or (f"[right][url=https://github.com/wastaken7/Upload-Assistant][size=4]{meta.ua_signature}[/size][/url][/right]" if meta.ua_signature else "")) if ua_signature else "")) if part.strip())))  # fmt: off
 
         # fmt: off
-        return self.tracker_specific_formats(self.tracker, "\n".join(part for part in (description_str, ((signature or (f"[right][url=https://github.com/wastaken7/Upload-Assistant][size=4]{meta.ua_signature}[/size][/url][/right]" if meta.ua_signature else "")) if ua_signature else "")) if part.strip()))  # ci: ua_signature v4.5
+        return self.tracker_specific_formats(self.tracker, "\n".join(part for part in (description_str, ((signature or (f"[right][url=https://github.com/wastaken7/Upload-Assistant][size=4]{meta.ua_signature}[/size][/url][/right]" if meta.ua_signature else "")) if ua_signature else "")) if part.strip()))  # ci: ua_signature v4.6
         # fmt: on
 
     async def _check_saved_pack_image_links(self, meta: Meta, approved_image_hosts: list[str]) -> dict[str, Any]:

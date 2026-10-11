@@ -1405,6 +1405,7 @@ const trackerNameMap = {
   PTGTK: "PT GTK",
   PTSKIT: "PTSKIT",
   PTZONE: "PTZone",
+  QINGWA: "QingWa",
   RACING4EVERYONE: "Racing4Everyone",
   RAILGUNPT: "RailgunPT",
   RASTASTUGAN: "Rastastugan",
@@ -11655,7 +11656,7 @@ function ConfigApp() {
   }, []);
 
   useEffect(() => {
-    storage.set(THEME_KEY, isDarkMode ? "dark" : "light");
+    window.setUAThemeMode(isDarkMode);
   }, [isDarkMode]);
 
   useEffect(() => {

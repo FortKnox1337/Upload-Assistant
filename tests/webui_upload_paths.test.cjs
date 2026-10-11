@@ -34,6 +34,7 @@ function setup() {
     manualPathsText: null,
     pathInputError: "",
     isExecuting: false,
+    isOutputExpanded: true,
     directories: [],
     getVisiblePaths: () => [],
     richOutputRef: { current: { innerHTML: "previous output" } },
@@ -54,6 +55,9 @@ function setup() {
     setSelectedName: () => {},
     setIsExecuting: (value) => {
       context.isExecuting = value;
+    },
+    setIsOutputExpanded: (value) => {
+      context.isOutputExpanded = value;
     },
     setSessionId: () => {},
   });
@@ -128,8 +132,33 @@ test("all pasted paths are prepared before execution and line errors prevent any
   await context.executeCommand();
   assert.equal(uploads, 0);
   assert.match(context.pathInputError, /^Line 3:/);
+  assert.equal(context.isOutputExpanded, false);
   assert.equal(context.richOutputRef.current.innerHTML, "previous output");
   assert.equal(context.isExecuting, false);
+});
+
+test("queue preparation errors return to the editable path input", async () => {
+  for (const malformedResponse of [false, true]) {
+    const context = setup();
+    context.handlePathInputChange("/media/first.mkv");
+    context.apiFetch = async () => {
+      if (!malformedResponse) throw new Error("Network unavailable");
+      return {
+        json: async () => {
+          throw new Error("Invalid response");
+        },
+      };
+    };
+    let uploads = 0;
+    context.executeSinglePath = async () => {
+      uploads++;
+    };
+    await context.executeCommand();
+    assert.match(context.pathInputError, /^Could not prepare upload:/);
+    assert.equal(context.isOutputExpanded, false);
+    assert.equal(context.isExecuting, false);
+    assert.equal(uploads, 0);
+  }
 });
 
 test("multiline input executes the issued queue and single input executes its validated path", async () => {

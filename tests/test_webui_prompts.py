@@ -326,6 +326,7 @@ def test_exit_reports_result_even_when_final_preview_is_unavailable(tmp_path, mo
 
     monkeypatch.setattr(server, "_is_authenticated", lambda: True)
     monkeypatch.setattr(server, "_verify_csrf_header", lambda: True)
+    monkeypatch.setattr(server, "_get_browse_roots", lambda: [str(tmp_path)])
     monkeypatch.setattr(server, "_resolve_user_path", lambda *_args, **_kwargs: str(tmp_path))
     monkeypatch.setattr(server, "_assert_safe_resolved_path", lambda _: None)
     monkeypatch.setattr(server, "_validate_upload_assistant_args", lambda args: args)
@@ -718,3 +719,48 @@ def test_check_review_redacts_multiline_json_response_without_losing_error():
     assert "[REDACTED]" in review["messages"][0]
     assert "Invalid request" in review["messages"][0]
     assert "Try again later." in review["messages"][0]
+
+
+def test_structured_gui_prompt_survives_background_progress(tmp_path, monkeypatch):
+    prompt = {"id": "gui-progress-test", "kind": "yes_no", "question": "Continue?", "default": False}
+    open_event = server.PROMPT_STDOUT_PREFIX + json.dumps({"op": "open", "prompt": prompt}) + "\n"
+    progress_event = server.PROGRESS_STDOUT_PREFIX + json.dumps({"op": "upsert", "id": "scan", "label": "Scanning", "current": 25, "total": 100}) + "\n"
+
+    class WaitingProcess:
+        stdin = io.StringIO()
+        stdout = io.StringIO(open_event + "\n\x1b[0m\n" + progress_event + "> ")
+        stderr = io.StringIO()
+
+        def poll(self):
+            return None
+
+    process = WaitingProcess()
+    session_id = "structured-background-progress-test"
+    monkeypatch.setattr(server, "_is_authenticated", lambda: True)
+    monkeypatch.setattr(server, "_verify_csrf_header", lambda: True)
+    monkeypatch.setattr(server, "_verify_same_origin", lambda: True)
+    monkeypatch.setattr(server, "_validate_execution_path", lambda *_args, **_kwargs: str(tmp_path))
+    monkeypatch.setattr(server, "_assert_safe_resolved_path", lambda _: None)
+    monkeypatch.setattr(server, "_spawn_webui_upload_process", lambda *_args: (process, "subprocess"))
+    monkeypatch.setattr(server, "_terminate_process_tree", lambda _: True)
+    client = server.app.test_client()
+    response = client.post("/api/execute", json={"path": str(tmp_path), "session_id": session_id}, buffered=False)
+    try:
+        for chunk in response.response:
+            event = json.loads(chunk.decode().removeprefix("data: "))
+            if event["type"] != "progress":
+                continue
+            state = server.active_processes[session_id]
+            assert state["prompt"] == prompt
+            assert state["structured_prompt_id"] == prompt["id"]
+            assert state["awaiting_input"] is True
+            assert state["input_type"] == "yes_no"
+            answer = client.post("/api/input", json={"session_id": session_id, "input": "yes", "prompt_id": prompt["id"]})
+            assert answer.status_code == 200
+            assert process.stdin.getvalue() == "yes\n"
+            break
+        else:
+            pytest.fail("Background progress never reached the browser")
+    finally:
+        response.close()
+        server.active_processes.pop(session_id, None)

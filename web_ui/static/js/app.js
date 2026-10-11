@@ -4955,6 +4955,7 @@ function AudionutsUAGUI() {
         const line = items[data.item - 1]?.line;
         const error = `${line ? `Line ${line}: ` : ""}${data.error || "Could not validate upload paths"}`;
         setPathInputError(error);
+        setIsOutputExpanded(false);
         return;
       }
       const rootContainer = richOutputRef.current;
@@ -4966,6 +4967,7 @@ function AudionutsUAGUI() {
       );
     } catch (error) {
       setPathInputError(`Could not prepare upload: ${error.message}`);
+      setIsOutputExpanded(false);
     } finally {
       setIsExecuting(false);
       setSessionId("");

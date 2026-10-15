@@ -51,9 +51,7 @@ def test_sound_is_written_directly_and_flushed(monkeypatch, webui) -> None:
         ({}, True, True, True),
     ],
 )
-async def test_confirmation_honors_sound_setting_and_unattended_mode(
-    monkeypatch, capsys, settings, unattended, unattended_confirm, expected_sound, webui
-) -> None:
+async def test_confirmation_honors_sound_setting_and_unattended_mode(monkeypatch, capsys, settings, unattended, unattended_confirm, expected_sound, webui) -> None:
     monkeypatch.setenv("UA_WEBUI_PROMPT_SOUND_STDOUT", "1" if webui else "0")
     monkeypatch.setattr("src.uphelper.logger.info", lambda *_args, **_kwargs: None)
     monkeypatch.setattr("src.uphelper.cli_ui.ask_yes_no", lambda *_args, **_kwargs: False)
@@ -105,10 +103,12 @@ def test_execute_stream_delivers_sound_once_without_rendering_marker(tmp_path, m
     events = [json.loads(line[6:]) for line in response.get_data(as_text=True).splitlines() if line.startswith("data: ")]
 
     assert response.status_code == 200
-    assert [event for event in events if event["type"] == "prompt_sound"] == [{"type": "prompt_sound"}]
+    assert [event["type"] for event in events if event["type"] == "prompt_sound"] == ["prompt_sound"]
     html = "".join(event["data"] for event in events if event["type"] == "html")
     assert "Before" in html and "After" in html
     assert PROMPT_SOUND_STDOUT_MARKER not in html
-    assert events[-1]["type"] == "exit"
-    assert events[-1]["code"] == 0
-    assert events[-1]["media"]["path"] == str(tmp_path)
+    # Logged events carry a sequence number; the stream closes with the session's end.
+    assert events[-2]["type"] == "exit"
+    assert events[-2]["code"] == 0
+    assert events[-2]["media"]["path"] == str(tmp_path)
+    assert events[-1] == {"type": "finished", "exit_code": 0}

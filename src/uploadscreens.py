@@ -61,7 +61,7 @@ class _ImageUploadProgress:
                 status = "failed"
             else:
                 status = "running"
-        detail = f"{len(self.uploaded)} of {total} images uploaded successfully"
+        detail = f"Current image host: {self.host}. {len(self.uploaded)} of {total} images uploaded successfully"
         if retrying or failed:
             detail += ". " + (retrying or failed)[-1]
         if note:
@@ -73,7 +73,7 @@ class _ImageUploadProgress:
         self.host = host
         if previous and previous != host:
             self.issues = {image: ("retrying", message) for image, (_state, message) in self.issues.items()}
-            self.publish(status="retrying", note=f"Switching to {host} for the remaining images")
+            self.publish(status="retrying", note=f"Trying next image host: {host} for the remaining images")
         else:
             self.publish()
 

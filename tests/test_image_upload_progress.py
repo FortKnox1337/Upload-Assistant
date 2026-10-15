@@ -25,10 +25,10 @@ def image_run(monkeypatch, tmp_path):
 
     monkeypatch.setattr(uploadscreens.asyncio, "sleep", no_delay)
 
-    async def run(upload, *, hosts=("imgbox",), count=2):
+    async def run(upload, *, hosts=("imgbox",), count=2, selected_host=None):
         for index in range(count):
             (tmp_path / f"image-{index + 1}.png").write_bytes(b"image")
-        meta = Meta(base_dir=str(tmp_path), uuid="image-progress", imghost=hosts[0])
+        meta = Meta(base_dir=str(tmp_path), uuid="image-progress", imghost=selected_host or hosts[0])
         config = {"DEFAULT": {**{f"img_host_{index + 1}": host for index, host in enumerate(hosts)}, "image_upload_delay": 0}, "TRACKERS": {}}
         monkeypatch.setattr(uploadscreens, "upload_image_task", upload)
         result = await uploadscreens._upload_screens(config, meta, count, 1, 0, count, [], {})
@@ -40,6 +40,21 @@ def image_run(monkeypatch, tmp_path):
 def uploaded(args):
     url = f"https://images.example/{Path(args[0]).name}"
     return {"status": "success", "img_url": url, "raw_url": url, "web_url": url}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("selected_host", [None, "ptscreens"])
+async def test_progress_names_the_actual_image_host_before_any_error(image_run, selected_host):
+    host = selected_host or "imgbox"
+
+    async def upload(args):
+        assert args[1] == host
+        return uploaded(args)
+
+    _result, events = await image_run(upload, selected_host=selected_host)
+    assert events[0]["current"] == 0
+    assert events[0]["status"] == "running"
+    assert all(event["detail"].startswith(f"Current image host: {host}. ") for event in events)
 
 
 @pytest.mark.asyncio
@@ -68,7 +83,7 @@ async def test_retry_reason_arrives_before_recovery_and_clears_on_success(image_
     assert calls == 2
     assert len({event["id"] for event in events}) == 1
     assert events[-1]["status"] == "completed"
-    assert events[-1]["detail"] == "1 of 1 images uploaded successfully"
+    assert events[-1]["detail"] == "Current image host: imgbox. 1 of 1 images uploaded successfully"
 
 
 @pytest.mark.asyncio
@@ -108,12 +123,15 @@ async def test_fallback_hosts_share_one_bar_and_preserve_partial_successes(image
     assert count == len(images) == 2
     assert calls == [("image-1.png", "imgbox"), ("image-2.png", "imgbox"), ("image-2.png", "imgbb"), ("image-2.png", "ptscreens")]
     assert len({event["id"] for event in events}) == 1
-    switches = [event for event in events if "Switching to" in event["detail"]]
+    switches = [event for event in events if "Trying next image host:" in event["detail"]]
     assert len(switches) == 2
     assert all(event["status"] == "retrying" and event["current"] == 1 and event["total"] == 2 for event in switches)
+    for event, host in zip(switches, ("imgbb", "ptscreens"), strict=True):
+        assert event["detail"].startswith(f"Current image host: {host}. ")
+        assert f"Trying next image host: {host}" in event["detail"]
     assert events[-1]["current"] == events[-1]["total"] == 2
     assert events[-1]["status"] == "completed"
-    assert events[-1]["detail"] == "2 of 2 images uploaded successfully"
+    assert events[-1]["detail"] == "Current image host: ptscreens. 2 of 2 images uploaded successfully"
 
 
 @pytest.mark.asyncio

@@ -190,7 +190,7 @@ async def test_image_progress_reports_each_finished_image(monkeypatch, tmp_path)
     assert [event["current"] for event in events] == [0, 1, 2]
     assert all(event["total"] == 2 for event in events)
     assert events[-1]["status"] == "completed"
-    assert events[-1]["detail"] == "2 of 2 images uploaded successfully"
+    assert events[-1]["detail"] == "Current image host: imgbox. 2 of 2 images uploaded successfully"
 
 
 @pytest.mark.parametrize("message", [{"error": "Rejected", "api_key": "private-key"}, '{\n"error": "Rejected",\n"api_key": "private-key"\n}\nNext message'])

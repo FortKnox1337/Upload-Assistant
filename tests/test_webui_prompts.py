@@ -334,7 +334,9 @@ def test_exit_reports_result_even_when_final_preview_is_unavailable(tmp_path, mo
     monkeypatch.setattr(server, "_find_execution_preview", preview)
     response = server.app.test_client().post("/api/execute", json={"path": str(tmp_path), "session_id": "final-preview-test"})
     events = [json.loads(line.removeprefix("data: ")) for line in response.get_data(as_text=True).splitlines() if line.startswith("data: ")]
-    assert events[-1] == {"type": "exit", "code": 0, "media": None if preview_fails else {"title": "Example"}}
+    exit_event = next(event for event in events if event["type"] == "exit")
+    assert {key: value for key, value in exit_event.items() if key != "seq"} == {"type": "exit", "code": 0, "media": None if preview_fails else {"title": "Example"}}
+    assert events[-1] == {"type": "finished", "exit_code": 0}
 
 
 @pytest.mark.skipif(sys.platform != "win32", reason="Windows ConPTY transport")

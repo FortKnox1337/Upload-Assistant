@@ -176,6 +176,36 @@ def test_closed_tab_kills_upload_when_keep_running_is_disabled(start_session) ->
     assert "legacy" not in server.active_processes
 
 
+def test_trimmed_gui_question_is_restored_and_answered_in_its_session(start_session, monkeypatch) -> None:
+    monkeypatch.setattr(server, "SESSION_EVENT_LOG_MAX_BYTES", 400)
+    process, response, _terminated = start_session("gui-restored")
+    events = _events(response)
+    _read_until(events, lambda event: event["type"] == "replay_done")
+    prompt = {"id": "gui-question", "kind": "yes_no", "question": "Upload this release?"}
+    process.stdout.feed(server.PROMPT_STDOUT_PREFIX + json.dumps({"op": "open", "prompt": prompt}) + "\n")
+    opened = _read_until(events, lambda event: event["type"] == "prompt")[-1]
+    assert opened["data"] == prompt
+    response.close()
+    state = server.active_processes["gui-restored"]
+    assert state["awaiting_since"] > 0
+    for index in range(20):
+        server._publish_session_event(state, {"type": "html", "data": f"Background line {index}"})
+    assert '"type": "prompt"' not in _logged_html("gui-restored")
+    client = server.app.test_client()
+    resumed = client.get("/api/session_stream?session_id=gui-restored", buffered=False)
+    restored = _read_until(_events(resumed), lambda event: event["type"] == "replay_done")[-1]
+    assert restored["prompt"] == prompt
+    assert restored["awaiting"] is True
+    answer = client.post("/api/input", json={"session_id": "gui-restored", "input": "yes", "prompt_id": prompt["id"]})
+    assert answer.status_code == 200
+    assert process.stdin.getvalue() == "yes\n"
+    assert state["last_input_at"] >= state["awaiting_since"]
+    duplicate_answer = client.post("/api/input", json={"session_id": "gui-restored", "input": "yes", "prompt_id": prompt["id"]})
+    assert duplicate_answer.status_code == 409
+    resumed.close()
+    process.exit(0)
+
+
 def test_unanswered_prompt_is_killed_only_while_no_browser_is_attached(start_session) -> None:
     process, response, terminated = start_session("prompt-timeout", prompt_timeout=0.3)
     events = _events(response)
@@ -243,8 +273,20 @@ def test_session_log_is_capped_and_reattach_reports_trimmed_output(monkeypatch) 
     replay = [json.loads(chunk.removeprefix("data: ")) for chunk in server._stream_session_events("capped", state, 0)]
     assert replay[0] == {"type": "truncated"}
     assert replay[-3]["data"] == "Fictional line 19"
-    assert replay[-2] == {"type": "replay_done"}
+    assert replay[-2] == {"type": "replay_done", "prompt": None, "awaiting": False, "media": None}
     assert replay[-1] == {"type": "finished", "exit_code": 0}
+
+
+def test_finished_session_does_not_restore_an_unanswered_gui_question() -> None:
+    state = server._make_process_state("Fictional.mkv", "")
+    server._init_session_events(state, label="Fictional", keep_running=True, prompt_timeout=0)
+    state.update(prompt={"id": "unanswered", "question": "Continue?"}, structured_prompt_id="unanswered", awaiting_input=True, input_type="yes_no")
+    server._finish_session(state, 1)
+    replay = [json.loads(chunk.removeprefix("data: ")) for chunk in server._stream_session_events("stopped", state, 0)]
+    assert replay[0]["prompt"] is None
+    assert replay[0]["awaiting"] is False
+    assert state["structured_prompt_id"] is None
+    assert state["input_type"] is None
 
 
 @pytest.mark.parametrize(

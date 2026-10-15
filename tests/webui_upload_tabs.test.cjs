@@ -37,6 +37,11 @@ const fakeElement = () => ({
 });
 
 const STATE = {
+  executionPrompt: null,
+  promptContext: "",
+  inputError: "",
+  runResult: null,
+  executionPreview: null,
   sessionId: "",
   isExecuting: false,
   isTerminalView: false,
@@ -48,6 +53,7 @@ const STATE = {
   pathInputError: "",
   selectedArgumentPreset: "",
   userInput: "",
+  isSendingInput: false,
   uploadTabs: [],
   activeTabId: "",
   pendingCloseTabId: "",
@@ -56,11 +62,16 @@ const STATE = {
 function setup() {
   const context = vm.createContext({
     Set,
+    AbortController,
+    TextDecoder,
+    TextEncoder,
     Map,
     String,
     window: {},
     document: { createElement: fakeElement },
     setTimeout: () => {},
+    clearTimeout,
+    isSendingInputRef: { current: false },
     screenshotMode: null,
     richOutputRef: { current: null },
     API_BASE: "/api",
@@ -82,10 +93,16 @@ function setup() {
   for (const name of [
     "MAX_UPLOAD_TABS",
     "createUploadTabForm",
+    "createUploadTabGui",
     "createUploadTabRuntime",
     "getUploadTabStatus",
     "sortProgressItems",
     "getTabRuntime",
+    "updateTabGui",
+    "SESSION_STREAM_STALL_MS",
+    "readSessionChunk",
+    "readSessionStream",
+    "sendInput",
     "refreshUploadTabStatus",
     "updateTabRun",
     "scrollTabOutput",
@@ -122,6 +139,134 @@ function setup() {
 
 const statusOf = (context, id) =>
   context.uploadTabs.find((tab) => tab.id === id).status;
+
+test("GUI questions, context and finished results follow their own upload tab", () => {
+  const context = setup();
+  const firstPrompt = { id: "first", kind: "yes_no", question: "First?" };
+  context.updateTabGui("tab-1", {
+    executionPrompt: firstPrompt,
+    promptContext: "First context",
+  });
+  context.addUploadTab();
+  assert.equal(context.executionPrompt, null);
+  context.updateTabGui("tab-1", {
+    inputError: "First tab warning",
+    runResult: { code: 0, media: { title: "First release" } },
+  });
+  assert.equal(context.inputError, "");
+  assert.equal(context.runResult, null);
+  context.updateTabGui("tab-2", {
+    executionPrompt: { id: "second", question: "Second?" },
+  });
+  context.switchUploadTab("tab-1");
+  assert.deepEqual(plain(context.executionPrompt), firstPrompt);
+  assert.equal(context.promptContext, "First context");
+  assert.equal(context.runResult.media.title, "First release");
+  context.switchUploadTab("tab-2");
+  assert.equal(context.executionPrompt.id, "second");
+  assert.equal(context.runResult, null);
+  assert.equal(context.inputError, "");
+});
+
+test("background GUI stream restores prompts and keeps final tracker links scoped", async () => {
+  const context = setup();
+  context.setTimeout = setTimeout;
+  context.applyProgressEvent(
+    { id: "warning", group: "warning", label: "Warning" },
+    "tab-1",
+  );
+  context.addUploadTab();
+  const prompt = {
+    id: "restored",
+    kind: "yes_no",
+    question: "Continue first?",
+  };
+  const stream = (events) => ({
+    body: {
+      getReader: () => {
+        let sent = false;
+        return {
+          read: async () => {
+            if (sent) return { done: true };
+            sent = true;
+            return {
+              done: false,
+              value: new TextEncoder().encode(
+                events
+                  .map((event) => "data: " + JSON.stringify(event) + "\n")
+                  .join(""),
+              ),
+            };
+          },
+          cancel: async () => {},
+        };
+      },
+    },
+  });
+  await context.readSessionStream(
+    "tab-1",
+    stream([
+      { type: "replay_done", prompt, awaiting: true },
+      { type: "prompt", data: { ...prompt, id: "newer" }, seq: 2 },
+      { type: "prompt", data: null, id: "restored", seq: 3 },
+    ]),
+    new AbortController(),
+  );
+  assert.equal(context.executionPrompt, null);
+  assert.equal(context.getTabRuntime("tab-1").gui.executionPrompt.id, "newer");
+  context.switchUploadTab("tab-1");
+  assert.equal(context.executionPrompt.id, "newer");
+  context.switchUploadTab("tab-2");
+  const media = {
+    title: "First",
+    tracker_results: [{ tracker: "TEST", url: "https://example.test/42" }],
+  };
+  await context.readSessionStream(
+    "tab-1",
+    stream([
+      { type: "exit", code: 0, media, seq: 4 },
+      { type: "replay_done", prompt, awaiting: true },
+      { type: "finished", exit_code: 0 },
+    ]),
+    new AbortController(),
+  );
+  assert.equal(context.runResult, null);
+  context.switchUploadTab("tab-1");
+  assert.equal(context.executionPrompt, null);
+  assert.deepEqual(plain(context.runResult), { code: 0, media });
+});
+
+test("an answer finishing after a tab switch cannot clear another question", async () => {
+  const context = setup();
+  context.updateTabGui("tab-1", { executionPrompt: { id: "first" } });
+  let resolveAnswer;
+  const request = new Promise((resolve) => {
+    resolveAnswer = resolve;
+  });
+  context.apiFetch = async (_url, options) => {
+    assert.deepEqual(JSON.parse(options.body), {
+      session_id: "first-session",
+      input: "yes",
+      prompt_id: "first",
+    });
+    return request;
+  };
+  const answer = context.sendInput("first-session", "yes", "first");
+  context.addUploadTab();
+  context.updateTabGui("tab-2", { executionPrompt: { id: "second" } });
+  context.updateTabGui("tab-1", { executionPrompt: { id: "next-first" } });
+  resolveAnswer({ ok: true });
+  assert.equal(await answer, true);
+  assert.equal(context.executionPrompt.id, "second");
+  assert.equal(
+    context.getTabRuntime("tab-1").gui.executionPrompt.id,
+    "next-first",
+  );
+  assert.equal(
+    context.getTabRuntime("tab-1").output.children.at(-1).textContent,
+    "> yes",
+  );
+});
 
 test("background tab output, progress and run state never touch the visible tab", () => {
   const context = setup();

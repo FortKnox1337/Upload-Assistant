@@ -14,7 +14,11 @@ function walk(value) {
   if (!value || typeof value !== "object") return;
   if (
     value.type === "FunctionDeclaration" &&
-    ["mergeTrackerResults", "duplicateReviewProgress"].includes(value.id?.name)
+    [
+      "mergeTrackerResults",
+      "duplicateReviewProgress",
+      "activityState",
+    ].includes(value.id?.name)
   )
     declarations.push(value);
   for (const [key, child] of Object.entries(value)) {
@@ -29,6 +33,38 @@ for (const declaration of declarations)
   vm.runInContext(source.slice(declaration.start, declaration.end), context);
 const merge = (...args) =>
   JSON.parse(JSON.stringify(context.mergeTrackerResults(...args)));
+
+test("image activity shows retries, recovery and incomplete counts", () => {
+  const state = (status, running = true, active = true) =>
+    JSON.parse(
+      JSON.stringify(
+        context.activityState(
+          { status, current: 1, total: 4 },
+          running,
+          active,
+        ),
+      ),
+    );
+  assert.deepEqual(state("retrying"), {
+    percent: 25,
+    label: "Retrying…",
+    tone: "retrying",
+  });
+  assert.deepEqual(state("running"), {
+    percent: 25,
+    label: "25%",
+    tone: "running",
+  });
+  assert.deepEqual(state("failed"), {
+    percent: 25,
+    label: "Incomplete",
+    tone: "failed",
+  });
+  assert.equal(state("completed").label, "Done");
+  assert.equal(state("retrying", false).label, "Stopped");
+  assert.equal(state("cancelled").label, "Stopped");
+  assert.equal(state("running", true, false).label, "Waiting for input");
+});
 
 test("duplicate review counts exclude automatic checks and update as searches finish", () => {
   const progress = [

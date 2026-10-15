@@ -23,8 +23,76 @@ from src.stats import record_event_async
 from src.temp_paths import screenshots_dir
 from src.tracker_images import image_tags
 from src.webui_progress import publish_progress
+from src.webui_results import plain_detail
 
 type ImageDict = dict[str, Any]
+
+
+def _image_upload_error_detail(error: object) -> str:
+    """Keep host errors readable and redact credentials before publishing them."""
+    detail = " ".join(plain_detail(error).split())
+    if isinstance(error, httpx.TimeoutException | TimeoutError):
+        detail = "Connection timed out"
+    elif isinstance(error, httpx.ConnectError | ConnectionError):
+        detail = f"Connection failed: {detail}" if detail else "Connection failed"
+    return (detail or "The image host did not provide an error message")[:300]
+
+
+class _ImageUploadProgress:
+    """One activity item for a batch, including retries on fallback hosts."""
+
+    def __init__(self, images: list[str]) -> None:
+        self.progress_id = f"images:{uuid.uuid4().hex}"
+        self.positions = {image: index + 1 for index, image in enumerate(images)}
+        self.uploaded: set[str] = set()
+        self.issues: dict[str, tuple[str, str]] = {}
+        self.host = ""
+
+    def publish(self, *, status: str = "", note: str = "") -> None:
+        total = len(self.positions)
+        retrying = [message for state, message in self.issues.values() if state == "retrying"]
+        failed = [message for state, message in self.issues.values() if state == "failed"]
+        if not status:
+            if len(self.uploaded) == total:
+                status = "completed"
+            elif retrying:
+                status = "retrying"
+            elif len(self.uploaded) + len(failed) == total:
+                status = "failed"
+            else:
+                status = "running"
+        detail = f"{len(self.uploaded)} of {total} images uploaded successfully"
+        if retrying or failed:
+            detail += ". " + (retrying or failed)[-1]
+        if note:
+            detail += ". " + note
+        publish_progress(self.progress_id, "Uploading images", current=len(self.uploaded), total=total, detail=detail, status=status, group="activity", unit="images")
+
+    def start_host(self, host: str) -> None:
+        previous = self.host
+        self.host = host
+        if previous and previous != host:
+            self.issues = {image: ("retrying", message) for image, (_state, message) in self.issues.items()}
+            self.publish(status="retrying", note=f"Switching to {host} for the remaining images")
+        else:
+            self.publish()
+
+    def problem(self, image: str, error: object, *, retry: int | None = None, max_retries: int = 3, delay: float = 0) -> None:
+        message = f"Image {self.positions[image]} of {len(self.positions)} ({self.host}): {_image_upload_error_detail(error)}."
+        if retry is not None:
+            message += f" Retrying {retry}/{max_retries}"
+            message += f" in {delay:g}s." if delay else "."
+        else:
+            message += " Unable to upload this image."
+        # Reinsert so the most recent issue remains visible during concurrency.
+        self.issues.pop(image, None)
+        self.issues[image] = ("retrying" if retry is not None else "failed", message)
+        self.publish()
+
+    def success(self, image: str) -> None:
+        self.uploaded.add(image)
+        self.issues.pop(image, None)
+        self.publish()
 
 
 def _build_image_start_limiter(delay: float) -> Callable[[], Awaitable[None]]:
@@ -118,13 +186,14 @@ async def upload_image_task(args: Sequence[Any]) -> dict[str, Any]:
 
         if img_host == "imgbox":
             try:
-                image_list = await imgbox_upload(Path.cwd(), [image], return_dict={})
+                imgbox_result: dict[str, Any] = {}
+                image_list = await imgbox_upload(Path.cwd(), [image], return_dict=imgbox_result)
                 if image_list and all("img_url" in img and "raw_url" in img and "web_url" in img for img in image_list):
                     img_url = image_list[0]["img_url"]
                     raw_url = image_list[0]["raw_url"]
                     web_url = image_list[0]["web_url"]
                 else:
-                    return {"status": "failed", "reason": "Imgbox upload failed. No valid URLs returned."}
+                    return {"status": "failed", "reason": imgbox_result.get("error") or "Imgbox upload failed. No valid URLs returned."}
             except Exception as e:
                 return {"status": "failed", "reason": f"Error during Imgbox upload: {e!s}"}
 
@@ -149,7 +218,7 @@ async def upload_image_task(args: Sequence[Any]) -> dict[str, Any]:
             except httpx.TimeoutException:
                 return {"status": "failed", "reason": "Catbox request timed out"}
             except httpx.RequestError as e:
-                return {"status": "failed", "reason": f"Catbox request failed: {e}"}
+                return {"status": "failed", "reason": f"Catbox request failed: {_image_upload_error_detail(e)}"}
 
         elif img_host == "imgbb":
             url = "https://api.imgbb.com/1/upload"
@@ -187,7 +256,7 @@ async def upload_image_task(args: Sequence[Any]) -> dict[str, Any]:
 
             except httpx.RequestError as e:
                 logger.info(f"[red]Request failed with error: {e}")
-                return {"status": "failed", "reason": str(e)}
+                return {"status": "failed", "reason": _image_upload_error_detail(e)}
 
         elif img_host == "dalexni":
             url = "https://dalexni.com/1/upload"
@@ -224,7 +293,7 @@ async def upload_image_task(args: Sequence[Any]) -> dict[str, Any]:
 
             except httpx.RequestError as e:
                 logger.info(f"[red]Request failed with error: {e}")
-                return {"status": "failed", "reason": str(e)}
+                return {"status": "failed", "reason": _image_upload_error_detail(e)}
 
         elif img_host == "ptscreens":
             url = "https://ptscreens.com/api/1/upload"
@@ -252,7 +321,7 @@ async def upload_image_task(args: Sequence[Any]) -> dict[str, Any]:
                 return {"status": "failed", "reason": "Request timed out"}
             except httpx.RequestError as e:
                 logger.info(f"[red]Request failed with error: {e}")
-                return {"status": "failed", "reason": str(e)}
+                return {"status": "failed", "reason": _image_upload_error_detail(e)}
             except ValueError as e:
                 logger.info(f"[red]Invalid JSON response from ptscreens: {e}")
                 return {"status": "failed", "reason": "Invalid JSON response"}
@@ -287,7 +356,7 @@ async def upload_image_task(args: Sequence[Any]) -> dict[str, Any]:
                 return {"status": "failed", "reason": "Request timed out"}
             except httpx.RequestError as e:
                 logger.info(f"[red]Request failed with error: {e}")
-                return {"status": "failed", "reason": str(e)}
+                return {"status": "failed", "reason": _image_upload_error_detail(e)}
             except ValueError as e:
                 logger.info(f"[red]Invalid JSON response from utppm: {e}")
                 return {"status": "failed", "reason": "Invalid JSON response"}
@@ -322,7 +391,7 @@ async def upload_image_task(args: Sequence[Any]) -> dict[str, Any]:
                 return {"status": "failed", "reason": "Request timed out"}
             except httpx.RequestError as e:
                 logger.info(f"[red]Request failed with error: {e}")
-                return {"status": "failed", "reason": str(e)}
+                return {"status": "failed", "reason": _image_upload_error_detail(e)}
             except ValueError as e:
                 logger.info(f"[red]Invalid JSON response from OnlyImage: {e}")
                 return {"status": "failed", "reason": "Invalid JSON response"}
@@ -363,7 +432,7 @@ async def upload_image_task(args: Sequence[Any]) -> dict[str, Any]:
 
             except httpx.RequestError as e:
                 logger.info(f"[red]pixhost request failed with error: {e}")
-                return {"status": "failed", "reason": str(e)}
+                return {"status": "failed", "reason": _image_upload_error_detail(e)}
 
         elif img_host == "lensdump":
             url = "https://lensdump.com/api/1/upload"
@@ -386,7 +455,7 @@ async def upload_image_task(args: Sequence[Any]) -> dict[str, Any]:
                 return {"status": "failed", "reason": "Invalid JSON response"}
             except httpx.RequestError as e:
                 logger.info(f"[red]Request failed with error: {e}")
-                return {"status": "failed", "reason": str(e)}
+                return {"status": "failed", "reason": _image_upload_error_detail(e)}
 
         elif img_host in ("zipline", "midnightscene", "bioma"):
             if img_host == "midnightscene":
@@ -454,7 +523,7 @@ async def upload_image_task(args: Sequence[Any]) -> dict[str, Any]:
 
             except httpx.RequestError as e:
                 logger.info(f"[red]Request failed with error: {e}")
-                return {"status": "failed", "reason": str(e)}
+                return {"status": "failed", "reason": _image_upload_error_detail(e)}
 
         elif img_host == "thrimg":
             url = "https://slike.torrenthr.org/api/1/upload"
@@ -538,7 +607,7 @@ async def upload_image_task(args: Sequence[Any]) -> dict[str, Any]:
                 return {"status": "failed", "reason": "Request timed out"}
             except httpx.RequestError as e:
                 logger.info(f"[red]Request to passtheimage failed with error: {e}")
-                return {"status": "failed", "reason": str(e)}
+                return {"status": "failed", "reason": _image_upload_error_detail(e)}
             except ValueError as e:
                 logger.info(f"[red]Invalid JSON response from passtheimage: {e}")
                 return {"status": "failed", "reason": "Invalid JSON response"}
@@ -594,7 +663,7 @@ async def upload_image_task(args: Sequence[Any]) -> dict[str, Any]:
                 return {"status": "failed", "reason": "Request timed out"}
             except httpx.RequestError as e:
                 logger.info(f"[red]SEEDPOOL CDN request failed: {e}")
-                return {"status": "failed", "reason": str(e)}
+                return {"status": "failed", "reason": _image_upload_error_detail(e)}
             except ValueError as e:
                 logger.info(f"[red]Invalid JSON response from SEEDPOOL CDN: {e}")
                 return {"status": "failed", "reason": "Invalid JSON response"}
@@ -649,7 +718,7 @@ async def upload_image_task(args: Sequence[Any]) -> dict[str, Any]:
                 return {"status": "failed", "reason": "Request timed out"}
             except httpx.RequestError as e:
                 logger.info(f"[red]Request to ShareX image host failed with error: {e}[/red]")
-                return {"status": "failed", "reason": str(e)}
+                return {"status": "failed", "reason": _image_upload_error_detail(e)}
             except ValueError as e:
                 logger.info(f"[red]Invalid JSON response from ShareX image host: {e}[/red]")
                 return {"status": "failed", "reason": "Invalid JSON response"}
@@ -699,7 +768,7 @@ async def upload_image_task(args: Sequence[Any]) -> dict[str, Any]:
                 return {"status": "failed", "reason": "Request timed out"}
             except httpx.RequestError as e:
                 logger.info(f"[red]Request to Samaritano image host failed with error: {e}[/red]")
-                return {"status": "failed", "reason": str(e)}
+                return {"status": "failed", "reason": _image_upload_error_detail(e)}
             except ValueError as e:
                 logger.info(f"[red]Invalid JSON response from Samaritano image host: {e}[/red]")
                 return {"status": "failed", "reason": "Invalid JSON response"}
@@ -750,7 +819,7 @@ async def upload_image_task(args: Sequence[Any]) -> dict[str, Any]:
                 return {"status": "failed", "reason": "Request timed out"}
             except httpx.RequestError as e:
                 logger.info(f"[red]Request to Lostimg failed with error: {e}[/red]")
-                return {"status": "failed", "reason": str(e)}
+                return {"status": "failed", "reason": _image_upload_error_detail(e)}
             except ValueError as e:
                 logger.info(f"[red]Invalid JSON response from Lostimg: {e}[/red]")
                 return {"status": "failed", "reason": "Invalid JSON response"}
@@ -763,7 +832,7 @@ async def upload_image_task(args: Sequence[Any]) -> dict[str, Any]:
         return {"status": "failed", "reason": f"Failed to upload image to {img_host}. No URLs received."}
 
     except Exception as e:
-        return {"status": "failed", "reason": str(e)}
+        return {"status": "failed", "reason": _image_upload_error_detail(e)}
 
 
 async def upload_image_task_with_stats(args: Sequence[Any]) -> dict[str, Any]:
@@ -804,6 +873,7 @@ async def _upload_screens(
     retry_mode: bool = False,
     max_retries: int = 3,
     allowed_hosts: list[str] | None = None,
+    _progress: _ImageUploadProgress | None = None,
 ) -> tuple[list[ImageDict], int]:
     """Select screenshots, throttle uploads, and collect successful results."""
     default_config = config.get("DEFAULT", {})
@@ -970,6 +1040,8 @@ async def _upload_screens(
         return image_list, len(image_list)
 
     upload_tasks: list[tuple[int, str, str, dict[str, Any], Meta]] = [(index, image, img_host, config, meta) for index, image in enumerate(image_glob[:images_needed])]
+    progress = _progress or _ImageUploadProgress([task[1] for task in upload_tasks])
+    progress.start_host(img_host)
     return_dict["_stats_image_upload_attempts"] = int(return_dict.get("_stats_image_upload_attempts", 0) or 0) + len(upload_tasks)
 
     # Concurrency Control
@@ -1001,13 +1073,17 @@ async def _upload_screens(
     ) -> tuple[int, dict[str, Any]] | None:
         """Upload image with concurrency control and retry logic."""
         index, *task_args = task
+        image = str(task_args[0])
         retry_count = 0
+        last_error: object = "Unable to upload image"
 
         async with semaphore:
             while retry_count <= max_retries:
                 future: asyncio.Task[dict[str, Any]] | None = None
                 try:
                     await wait_for_image_start_slot()
+                    if retry_count:
+                        progress.problem(image, last_error, retry=retry_count, max_retries=max_retries)
                     future = asyncio.create_task(upload_image_task(task_args))
                     running_tasks.add(future)
 
@@ -1021,22 +1097,28 @@ async def _upload_screens(
                                 if isinstance(uploaded_image_files, set):
                                     uploaded_image_files.add(str(Path(str(task_args[0])).resolve()))
                             return (index, result)
-                        reason = result.get("reason", "Unknown error")
+                        reason = str(result.get("reason") or "The image host did not provide an error message")
+                        last_error = reason
                         if "duplicate" in reason.lower():
                             logger.info(f"[yellow]Skipping host because duplicate image {index}: {reason}[/yellow]")
+                            progress.problem(image, reason)
                             return None
                         if "api key" in reason.lower():
                             logger.info(f"[red]API key error for {img_host}. Aborting further attempts.[/red]")
+                            progress.problem(image, reason)
                             return None
                         if retry_count < max_retries:
                             retry_count += 1
                             logger.info(f"[yellow]Retry {retry_count}/{max_retries} for image {index}: {reason}[/yellow]")
+                            progress.problem(image, reason, retry=retry_count, max_retries=max_retries, delay=1.1 * retry_count)
                             await asyncio.sleep(1.1 * retry_count)
                             continue
                         logger.error(f"[red]Failed to upload image {index} after {max_retries} attempts: {reason}[/red]")
+                        progress.problem(image, reason)
                         return None
 
                     except TimeoutError:
+                        last_error = "Connection timed out after 60 seconds"
                         logger.info(f"[red]Upload task {index} timed out after 60 seconds[/red]")
                         if future in running_tasks:
                             future.cancel()
@@ -1045,8 +1127,10 @@ async def _upload_screens(
                         if retry_count < max_retries:
                             retry_count += 1
                             logger.info(f"[yellow]Retry {retry_count}/{max_retries} for image {index} after timeout[/yellow]")
+                            progress.problem(image, last_error, retry=retry_count, max_retries=max_retries, delay=1.1 * retry_count)
                             await asyncio.sleep(1.1 * retry_count)
                             continue
+                        progress.problem(image, last_error)
                         return None
 
                 except asyncio.CancelledError:
@@ -1054,16 +1138,20 @@ async def _upload_screens(
                     if future and future in running_tasks:
                         future.cancel()
                         running_tasks.discard(future)
+                    progress.problem(image, "Upload cancelled")
                     return None
 
                 except Exception as e:
+                    last_error = e
                     logger.error(f"[red]Error during upload for image {index}: {e!s}[/red]")
                     if retry_count < max_retries:
                         retry_count += 1
                         logger.info(f"[yellow]Retry {retry_count}/{max_retries} for image {index}: {e!s}[/yellow]")
+                        progress.problem(image, e, retry=retry_count, max_retries=max_retries, delay=1.5 * retry_count)
                         await asyncio.sleep(1.5 * retry_count)
                         continue
                     logger.error(f"[red]Error during upload for image {index} after {max_retries} attempts: {e!s}[/red]")
+                    progress.problem(image, e)
                     return None
 
         return None
@@ -1072,29 +1160,10 @@ async def _upload_screens(
         max_retries = 3
         results: list[tuple[int, dict[str, Any]]] = []
         try:
-            progress_id = f"images:{uuid.uuid4().hex}"
-            finished = 0
-            uploaded = 0
-            label = "Uploading images"
-            publish_progress(progress_id, label, current=0, total=len(upload_tasks), group="activity", unit="images")
-
             async def upload_with_progress(task: Any) -> tuple[int, dict[str, Any]] | None:
-                nonlocal finished, uploaded
                 result = await async_upload(task, max_retries)
-                finished += 1
                 if result is not None and result[1].get("status") == "success":
-                    uploaded += 1
-                status = "running" if finished < len(upload_tasks) else "completed" if uploaded == finished else "failed"
-                publish_progress(
-                    progress_id,
-                    label,
-                    current=finished,
-                    total=len(upload_tasks),
-                    detail=f"{uploaded} of {len(upload_tasks)} images uploaded successfully",
-                    status=status,
-                    group="activity",
-                    unit="images",
-                )
+                    progress.success(str(task[1]))
                 return result
 
             upload_results = await asyncio.gather(*[upload_with_progress(task) for task in upload_tasks])
@@ -1102,6 +1171,7 @@ async def _upload_screens(
             results.sort(key=lambda x: x[0])
         except Exception as e:
             logger.error(f"[red]Error during uploads: {e!s}[/red]")
+            progress.publish(status="failed", note=_image_upload_error_detail(e))
 
         successfully_uploaded = [(index, result) for index, result in results if result["status"] == "success"]
         return_dict["_stats_image_upload_successes"] = int(return_dict.get("_stats_image_upload_successes", 0) or 0) + len(successfully_uploaded)
@@ -1153,8 +1223,10 @@ async def _upload_screens(
                     return_dict,
                     retry_mode=True,
                     allowed_hosts=allowed_hosts,
+                    _progress=progress,
                 )
             logger.info("[red]No more image hosts available. Aborting upload process.")
+            progress.publish(status="failed", note="No more image hosts available")
             return image_list, len(image_list)
 
         # Process and store successfully uploaded images
@@ -1187,6 +1259,7 @@ async def _upload_screens(
 
     except asyncio.CancelledError:
         logger.info("\n[red]Upload process interrupted! Cancelling tasks...[/red]")
+        progress.publish(status="cancelled", note="Image uploads cancelled")
 
         # Cancel running tasks
         for task in running_tasks:
@@ -1219,6 +1292,7 @@ async def imgbox_upload(
                         submission_data = cast(dict[str, Any], submission)
                         if not submission_data.get("success"):
                             logger.error(f"[red]Error uploading to imgbox: [yellow]{submission_data.get('error')}[/yellow][/red]")
+                            return_dict["error"] = _image_upload_error_detail(submission_data.get("error"))
                         else:
                             web_url = cast(str | None, submission_data.get("web_url"))
                             img_url = cast(str | None, submission_data.get("thumbnail_url"))
@@ -1228,8 +1302,10 @@ async def imgbox_upload(
                                 image_list.append(image_dict)
                             else:
                                 logger.info(f"[red]Incomplete URLs received for image: {image}")
+                                return_dict["error"] = "Imgbox returned incomplete image URLs"
                 except Exception as e:
                     logger.error(f"[red]Error during upload for {image}: {e!s}")
+                    return_dict["error"] = _image_upload_error_detail(e)
 
             for image in image_glob:
                 await process_image(str(Path(chdir) / image))
@@ -1239,4 +1315,5 @@ async def imgbox_upload(
 
     except Exception as e:
         logger.info(f"[red]An error occurred while uploading images to imgbox: {e!s}")
+        return_dict["error"] = _image_upload_error_detail(e)
         return []

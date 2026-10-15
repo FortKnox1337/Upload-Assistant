@@ -395,6 +395,42 @@ button:focus-visible {
   padding-inline-end: 0.75rem;
 }
 
+.ua-gui-activity-progress {
+  --ua-activity-progress-color: #3b82f6;
+  appearance: none;
+  border: 0;
+  border-radius: 9999px;
+  background: var(--ua-border);
+  color: var(--ua-activity-progress-color);
+}
+
+[data-activity-status="retrying"] .ua-gui-activity-progress {
+  --ua-activity-progress-color: #f59e0b;
+}
+
+[data-activity-status="failed"] .ua-gui-activity-progress {
+  --ua-activity-progress-color: #ef4444;
+}
+
+[data-activity-status="completed"] .ua-gui-activity-progress {
+  --ua-activity-progress-color: #22c55e;
+}
+
+.ua-gui-activity-progress::-webkit-progress-bar {
+  background: var(--ua-border);
+  border-radius: inherit;
+}
+
+.ua-gui-activity-progress::-webkit-progress-value {
+  background: var(--ua-activity-progress-color);
+  border-radius: inherit;
+}
+
+.ua-gui-activity-progress::-moz-progress-bar {
+  background: var(--ua-activity-progress-color);
+  border-radius: inherit;
+}
+
 .ua-gui-upload,
 #rich-output {
   scrollbar-gutter: stable;

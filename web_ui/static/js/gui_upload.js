@@ -439,24 +439,32 @@
       {
         allow: {
           title: "Upload looks fine",
+          label: "Looks fine",
+          entriesTitle: "Related releases",
           icon: "check",
           tone: "text-green-500",
           border: "border-green-500/60",
         },
         block: {
           title: "Upload not recommended",
+          label: "Not recommended",
+          entriesTitle: "Conflicting releases",
           icon: "triangle-alert",
           tone: "text-red-500",
           border: "border-red-500/60",
         },
         review: {
           title: "Check before uploading",
+          label: "Review needed",
+          entriesTitle: "Releases to review",
           icon: "circle-help",
           tone: "text-amber-500",
           border: "border-amber-500/60",
         },
       }[verdict] || {
         title: "Review tracker slot rules",
+        label: "Review needed",
+        entriesTitle: "Related releases",
         icon: "circle-help",
         tone: "text-amber-500",
         border: "border-amber-500/60",
@@ -513,7 +521,10 @@
         {showConflicts && !!review.entries?.length && (
           <details>
             <summary className="cursor-pointer font-semibold">
-              Existing releases considered ({review.entries.length})
+              {review.verdict === "block" && review.slot
+                ? "Slot blocked by"
+                : state.entriesTitle}{" "}
+              ({review.entries.length})
             </summary>
             <ul className="space-y-2 mt-2" aria-label="Slot conflicts">
               {review.entries.map((entry, index) => (
@@ -552,7 +563,7 @@
       </div>
     );
     const props = {
-      className: `rounded-lg border ${state.border} p-3 space-y-3 min-w-0`,
+      className: `rounded-lg border ${state.border} ${compact ? "group p-2.5" : "p-3"} space-y-3 min-w-0 text-sm`,
       "data-testid": "slot-recommendation",
       "data-tracker": review.tracker,
       "data-verdict": review.verdict,
@@ -560,18 +571,32 @@
     if (compact)
       return (
         <details {...props}>
-          <summary className="cursor-pointer">
-            <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1">
-              <TrackerLabel
-                tracker={review.tracker}
-                favicon={
-                  trackers.find(
-                    (item) =>
-                      item.name.toUpperCase() === review.tracker.toUpperCase(),
-                  )?.favicon
-                }
+          <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden">
+            <span className="flex items-start gap-2">
+              <LucideIcon
+                name="chevron-right"
+                className="h-3.5 w-3.5 mt-0.5 shrink-0 transition-transform group-open:rotate-90"
               />
-              {heading}
+              <span className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-x-2 gap-y-1">
+                <span className="min-w-0 break-words [overflow-wrap:anywhere]">
+                  <TrackerLabel
+                    tracker={review.tracker}
+                    favicon={
+                      trackers.find(
+                        (item) =>
+                          item.name.toUpperCase() ===
+                          review.tracker.toUpperCase(),
+                      )?.favicon
+                    }
+                  />
+                </span>
+                <span
+                  className={`inline-flex shrink-0 items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs leading-4 font-medium ${state.tone} ${state.border}`}
+                >
+                  <LucideIcon name={state.icon} className="h-3 w-3 shrink-0" />
+                  {state.label}
+                </span>
+              </span>
             </span>
           </summary>
           {content}
@@ -1355,7 +1380,7 @@
           >
             <h3 className="font-semibold">Tracker slot checks</h3>
             <div
-              className="grid gap-2"
+              className="grid items-start gap-2"
               style={{
                 gridTemplateColumns:
                   "repeat(auto-fit, minmax(min(100%, 20rem), 1fr))",

@@ -1127,30 +1127,6 @@
     );
   }
 
-  function activityState(item, running, active) {
-    const percent =
-      item.total > 0 && Number.isFinite(item.current)
-        ? Math.max(0, Math.min(100, (item.current / item.total) * 100))
-        : null;
-    if (item.status === "completed")
-      return { percent, label: "Done", tone: "completed" };
-    if (item.status === "failed")
-      return { percent, label: "Incomplete", tone: "failed" };
-    if (!running || item.status === "cancelled")
-      return { percent, label: "Stopped", tone: "stopped" };
-    if (item.status === "retrying")
-      return { percent, label: "Retrying…", tone: "retrying" };
-    return {
-      percent,
-      label: !active
-        ? "Waiting for input"
-        : percent !== null
-          ? `${Math.round(percent)}%`
-          : "Working…",
-      tone: "running",
-    };
-  }
-
   function Panel({
     running,
     prompt,
@@ -1393,67 +1369,6 @@
                 />
               ))}
             </div>
-          </section>
-        )}
-        {!!activity.length && (
-          <section
-            className="rounded-xl border [border-color:var(--ua-border)] p-4 space-y-3"
-            aria-label="Upload activity"
-          >
-            <h3 className="font-semibold">Activity</h3>
-            {activity.slice(-6).map((item) => {
-              const state = activityState(item, running, active);
-              const problem = ["retrying", "failed"].includes(state.tone);
-              const toneClass =
-                state.tone === "retrying"
-                  ? "text-amber-500"
-                  : state.tone === "failed"
-                    ? "text-red-500"
-                    : "opacity-70";
-              return (
-                <div
-                  key={item.id}
-                  className="text-sm space-y-1"
-                  data-activity-status={state.tone}
-                >
-                  <div className="flex justify-between gap-3">
-                    <span className="inline-flex items-center gap-2">
-                      {problem && (
-                        <LucideIcon
-                          name={
-                            state.tone === "retrying"
-                              ? "refresh-cw"
-                              : "triangle-alert"
-                          }
-                          className={`h-4 w-4 shrink-0 ${toneClass}`}
-                        />
-                      )}
-                      {item.label}
-                    </span>
-                    <span className={toneClass} role="status">
-                      {state.label}
-                    </span>
-                  </div>
-                  {state.percent !== null && (
-                    <progress
-                      aria-label={item.label}
-                      aria-valuetext={`${state.label}. ${item.detail || ""}`.trim()}
-                      value={state.percent}
-                      max="100"
-                      className="ua-gui-activity-progress w-full h-1.5"
-                    />
-                  )}
-                  {item.detail && (
-                    <p
-                      className={`text-xs break-words ${toneClass}`}
-                      aria-live="polite"
-                    >
-                      {item.detail}
-                    </p>
-                  )}
-                </div>
-              );
-            })}
           </section>
         )}
         {!!trackerResults.length && (

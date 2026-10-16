@@ -1347,84 +1347,100 @@
             </button>
           </section>
         )}
-        {!!slotReviews.length && (
-          <section
-            className="rounded-xl border [border-color:var(--ua-border)] p-4 space-y-3"
-            aria-label="Tracker slot checks"
+        {(!!slotReviews.length || !!trackerResults.length) && (
+          <div
+            className="grid items-stretch gap-4"
+            data-testid="tracker-overview"
+            style={{
+              gridTemplateColumns:
+                "repeat(auto-fit, minmax(min(100%, 24rem), 1fr))",
+            }}
           >
-            <h3 className="font-semibold">Tracker slot checks</h3>
-            <div
-              className="grid items-start gap-2"
-              style={{
-                gridTemplateColumns:
-                  "repeat(auto-fit, minmax(min(100%, 20rem), 1fr))",
-              }}
-            >
-              {slotReviews.map((review) => (
-                <SlotRecommendation
-                  key={review.tracker}
-                  review={review}
-                  compact
-                  trackers={trackers}
-                />
-              ))}
-            </div>
-          </section>
-        )}
-        {!!trackerResults.length && (
-          <section className="rounded-xl border [border-color:var(--ua-border)] p-4 space-y-2">
-            <h3 className="font-semibold">Tracker results</h3>
-            {trackerResults.map(({ tracker, outcome, detail, url }) => (
-              <div
-                className="flex flex-wrap justify-between gap-3 text-sm"
-                key={tracker}
-                data-tracker={tracker}
+            {!!slotReviews.length && (
+              <section
+                className="min-w-0 rounded-xl border [border-color:var(--ua-border)] p-4 space-y-3"
+                aria-label="Slot Checks"
               >
-                <div className="min-w-0 flex-1">
-                  <TrackerLabel
-                    tracker={tracker}
-                    favicon={
-                      trackers.find(
-                        (item) =>
-                          item.name.toUpperCase() === tracker.toUpperCase(),
-                      )?.favicon
-                    }
-                  />
-                  {url &&
-                    outcome === "Uploaded" &&
-                    /^https?:\/\//i.test(url) && (
-                      <a
-                        href={url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="ua-accent-link inline-block ml-3 hover:underline"
-                      >
-                        View torrent ↗
-                      </a>
-                    )}
-                  <Warnings
-                    items={warnings.filter((item) => item.tracker === tracker)}
-                  />
-                  {detail && (
-                    <p className="mt-1 text-xs opacity-70 whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
-                      {detail}
-                    </p>
-                  )}
-                </div>
-                <span
-                  className={`shrink-0 ${
-                    outcome === "Uploaded" || outcome === "Debug completed"
-                      ? "text-green-500"
-                      : outcome === "Failed"
-                        ? "text-red-500"
-                        : "opacity-70"
-                  }`}
+                <h3 className="font-semibold">Slot Checks</h3>
+                <div
+                  className="grid items-start gap-2"
+                  style={{
+                    gridTemplateColumns:
+                      "repeat(auto-fit, minmax(min(100%, 20rem), 1fr))",
+                  }}
                 >
-                  {outcome}
-                </span>
-              </div>
-            ))}
-          </section>
+                  {slotReviews.map((review) => (
+                    <SlotRecommendation
+                      key={review.tracker}
+                      review={review}
+                      compact
+                      trackers={trackers}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
+            {!!trackerResults.length && (
+              <section
+                className="min-w-0 rounded-xl border [border-color:var(--ua-border)] p-4 space-y-2"
+                aria-label="Upload Status"
+              >
+                <h3 className="font-semibold">Upload Status</h3>
+                {trackerResults.map(({ tracker, outcome, detail, url }) => (
+                  <div
+                    className="flex flex-wrap justify-between gap-3 text-sm"
+                    key={tracker}
+                    data-tracker={tracker}
+                  >
+                    <div className="min-w-0 flex-1 [overflow-wrap:anywhere]">
+                      <TrackerLabel
+                        tracker={tracker}
+                        favicon={
+                          trackers.find(
+                            (item) =>
+                              item.name.toUpperCase() === tracker.toUpperCase(),
+                          )?.favicon
+                        }
+                      />
+                      {url &&
+                        outcome === "Uploaded" &&
+                        /^https?:\/\//i.test(url) && (
+                          <a
+                            href={url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="ua-accent-link inline-block ml-3 hover:underline"
+                          >
+                            View torrent ↗
+                          </a>
+                        )}
+                      <Warnings
+                        items={warnings.filter(
+                          (item) => item.tracker === tracker,
+                        )}
+                      />
+                      {detail && (
+                        <p className="mt-1 text-xs opacity-70 whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
+                          {detail}
+                        </p>
+                      )}
+                    </div>
+                    <span
+                      className={`shrink-0 ${
+                        outcome === "Uploaded" || outcome === "Debug completed"
+                          ? "text-green-500"
+                          : outcome === "Failed"
+                            ? "text-red-500"
+                            : "opacity-70"
+                      }`}
+                    >
+                      {outcome}
+                    </span>
+                  </div>
+                ))}
+              </section>
+            )}
+          </div>
         )}
       </div>
     );

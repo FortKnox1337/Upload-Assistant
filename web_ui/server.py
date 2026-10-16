@@ -1517,6 +1517,8 @@ def _apply_progress_event(process_info: ProcessInfo, event: Mapping[str, object]
     progress_map = cast(dict[str, dict[str, object]], progress_map_obj)
 
     current_item = dict(progress_map.get(progress_id, {}))
+    if isinstance(event.get("slot_review"), dict):
+        current_item["slot_review"] = event["slot_review"]
     for key in ("id", "label", "detail", "status", "group", "unit", "updated_at", "url", "tracker"):
         if key in event:
             current_item[key] = event[key]
@@ -2793,6 +2795,7 @@ class ProgressItem(TypedDict, total=False):
     updated_at: float
     url: str
     tracker: str
+    slot_review: dict[str, object]
 
 
 class ExecutionPreview(TypedDict, total=False):

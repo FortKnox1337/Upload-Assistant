@@ -137,7 +137,7 @@ async def test_single_and_multiple_upload_confirmations_keep_decisions(monkeypat
     monkeypatch.setattr(trackerstatus, "AvistaZNetworkRouter", lambda *_args: SimpleNamespace(apply=AsyncMock()))
 
     class Helper:
-        dupe_check = AsyncMock(side_effect=lambda _dupes, meta, _name: (False, meta))
+        dupe_check = AsyncMock(side_effect=lambda _dupes, meta, _name, _slot_decision=None: (False, meta))
 
         async def prompt_yes_no(self, question, default=False):
             assert question == ("Upload?" if len(names) == 1 else "Upload to all?")

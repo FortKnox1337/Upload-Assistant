@@ -15,6 +15,7 @@ from src.dupe_checking import DupeChecker
 from src.imdb import imdb_manager
 from src.meta import Meta
 from src.metadata_searching import get_douban_id
+from src.slot_rules.models import Verdict
 from src.slot_rules.registry import evaluate_slots
 from src.stats import record_event_async
 from src.trackers.AVISTAZ.routing import AvistaZNetworkRouter
@@ -23,7 +24,7 @@ from src.trackersetup import TrackerSetup, tracker_class_map
 from src.uphelper import UploadHelper
 from src.webui_progress import publish_progress, reset_progress
 from src.webui_prompts import build_check_review, capture_check_messages, prompt_details
-from src.webui_results import publish_tracker, publish_tracker_result
+from src.webui_results import plain_detail, publish_tracker, publish_tracker_result
 from src.webui_warnings import warning_context
 
 
@@ -308,6 +309,8 @@ class TrackerStatusManager:
                         is_dupe, local_meta = await helper.dupe_check(dupes, local_meta, tracker_name, slot_decision)
                         if is_dupe:
                             local_tracker_status["dupe"] = True
+                            if slot_decision is not None and slot_decision.verdict in (Verdict.BLOCK, Verdict.REVIEW):
+                                local_tracker_status["skip_reason"] = f"Slot rules: {plain_detail(slot_decision.reason)}"
 
                         matched_episode_ids = local_meta.get(f"{tracker_name}_matched_episode_ids", [])
                         trumpable_id = local_meta.get("trumpable_id")

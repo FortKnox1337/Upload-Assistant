@@ -434,16 +434,162 @@
     };
   }
 
+  function slotRecommendationState(verdict) {
+    return (
+      {
+        allow: {
+          title: "Upload looks fine",
+          icon: "check",
+          tone: "text-green-500",
+          border: "border-green-500/60",
+        },
+        block: {
+          title: "Upload not recommended",
+          icon: "triangle-alert",
+          tone: "text-red-500",
+          border: "border-red-500/60",
+        },
+        review: {
+          title: "Check before uploading",
+          icon: "circle-help",
+          tone: "text-amber-500",
+          border: "border-amber-500/60",
+        },
+      }[verdict] || {
+        title: "Review tracker slot rules",
+        icon: "circle-help",
+        tone: "text-amber-500",
+        border: "border-amber-500/60",
+      }
+    );
+  }
+
+  function formatReviewSize(bytes) {
+    if (!Number.isFinite(bytes) || bytes <= 0) return "Not available";
+    const units = ["B", "KiB", "MiB", "GiB", "TiB"];
+    const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), 4);
+    return `${(bytes / 1024 ** index).toLocaleString(undefined, { maximumFractionDigits: 2 })} ${units[index]}`;
+  }
+
+  function SlotRecommendation({
+    review,
+    compact = false,
+    showConflicts = true,
+    trackers = [],
+  }) {
+    const state = slotRecommendationState(review.verdict);
+    const heading = (
+      <span
+        className={`inline-flex items-center gap-2 font-semibold ${state.tone}`}
+      >
+        <LucideIcon name={state.icon} className="h-4 w-4 shrink-0" />
+        {state.title}
+      </span>
+    );
+    const content = (
+      <div className="space-y-3 text-sm">
+        <p className="break-words [overflow-wrap:anywhere]">{review.reason}</p>
+        {review.slot && (
+          <p className="break-words">
+            <span className="font-semibold">Slot: </span>
+            {review.slot}
+          </p>
+        )}
+        {review.why && (
+          <div className="space-y-1">
+            <h4 className="text-xs font-semibold opacity-70">Why</h4>
+            <p className="break-words whitespace-pre-wrap">{review.why}</p>
+          </div>
+        )}
+        {!!review.notes?.length && (
+          <ul className="list-disc pl-5 space-y-1" aria-label="Slot rule notes">
+            {review.notes.map((note, index) => (
+              <li key={index} className="break-words">
+                {note}
+              </li>
+            ))}
+          </ul>
+        )}
+        {showConflicts && !!review.entries?.length && (
+          <details>
+            <summary className="cursor-pointer font-semibold">
+              Existing releases considered ({review.entries.length})
+            </summary>
+            <ul className="space-y-2 mt-2" aria-label="Slot conflicts">
+              {review.entries.map((entry, index) => (
+                <li
+                  key={index}
+                  className="rounded-lg border [border-color:var(--ua-border)] p-3 space-y-1 break-words [overflow-wrap:anywhere]"
+                >
+                  <p className="font-semibold">
+                    {entry.name || "Unnamed release"}
+                  </p>
+                  {/^https?:\/\/\S+$/i.test(entry.url || "") && (
+                    <a
+                      href={entry.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="ua-accent-link inline-block hover:underline"
+                    >
+                      View on {review.tracker} ↗
+                    </a>
+                  )}
+                  <p className="text-xs opacity-70">
+                    Size: {formatReviewSize(entry.size)}
+                    {review.show_size_difference && entry.difference
+                      ? ` · Difference: ${entry.difference.mb >= 0 ? "+" : ""}${entry.difference.mb} MB / ${entry.difference.percent >= 0 ? "+" : ""}${entry.difference.percent}%`
+                      : ""}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
+        <p className="text-xs opacity-70">
+          Rules as of {review.rules_date}. This is a recommendation; tracker
+          rules may change.
+        </p>
+      </div>
+    );
+    const props = {
+      className: `rounded-lg border ${state.border} p-3 space-y-3 min-w-0`,
+      "data-testid": "slot-recommendation",
+      "data-tracker": review.tracker,
+      "data-verdict": review.verdict,
+    };
+    if (compact)
+      return (
+        <details {...props}>
+          <summary className="cursor-pointer">
+            <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1">
+              <TrackerLabel
+                tracker={review.tracker}
+                favicon={
+                  trackers.find(
+                    (item) =>
+                      item.name.toUpperCase() === review.tracker.toUpperCase(),
+                  )?.favicon
+                }
+              />
+              {heading}
+            </span>
+          </summary>
+          {content}
+        </details>
+      );
+    return (
+      <section {...props}>
+        {heading}
+        {content}
+      </section>
+    );
+  }
+
   function DuplicateReview({ review, trackers = [], progress = [] }) {
     const favicon = trackers.find(
       (tracker) => tracker.name.toUpperCase() === review.tracker.toUpperCase(),
     )?.favicon;
-    const formatSize = (bytes) => {
-      if (!Number.isFinite(bytes) || bytes <= 0) return "Not available";
-      const units = ["B", "KiB", "MiB", "GiB", "TiB"];
-      const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), 4);
-      return `${(bytes / 1024 ** index).toLocaleString(undefined, { maximumFractionDigits: 2 })} ${units[index]}`;
-    };
+    const formatSize = formatReviewSize;
     const signed = (value) => `${value >= 0 ? "+" : ""}${value}`;
     const counter = duplicateReviewProgress(review, progress);
     const matchCount = review.entries?.length || 0;
@@ -466,6 +612,13 @@
             {counter.searching && <p>More tracker checks running…</p>}
           </div>
         </div>
+        {review.slot_review && (
+          <SlotRecommendation
+            review={review.slot_review}
+            showConflicts={review.kind !== "slot"}
+            trackers={trackers}
+          />
+        )}
         {(review.notices || []).map((notice, index) => (
           <p
             key={index}
@@ -731,6 +884,7 @@
                     exact: "Exact match found",
                     season_pack: "Season pack found",
                     trumpable: "Trumpable releases found",
+                    slot: "Review tracker slot rules",
                   }[prompt.duplicate_review.kind] ||
                   "Potential duplicates found"
                 : prompt.check_review
@@ -1009,6 +1163,13 @@
     const activity = displayedProgress
       .filter((item) => item.group === "activity")
       .sort((a, b) => Number(a.updated_at || 0) - Number(b.updated_at || 0));
+    const slotReviews = displayedProgress
+      .filter((item) => item.group === "slot_review" && item.slot_review)
+      .map((item) => item.slot_review)
+      .filter(
+        (review) =>
+          review.tracker !== prompt?.duplicate_review?.slot_review?.tracker,
+      );
     const liveActivity = [...activity]
       .reverse()
       .find((item) => ["running", "retrying"].includes(item.status));
@@ -1158,6 +1319,30 @@
             <button className={buttonClass} onClick={onConsole}>
               Open Console
             </button>
+          </section>
+        )}
+        {!!slotReviews.length && (
+          <section
+            className="rounded-xl border [border-color:var(--ua-border)] p-4 space-y-3"
+            aria-label="Tracker slot checks"
+          >
+            <h3 className="font-semibold">Tracker slot checks</h3>
+            <div
+              className="grid gap-2"
+              style={{
+                gridTemplateColumns:
+                  "repeat(auto-fit, minmax(min(100%, 20rem), 1fr))",
+              }}
+            >
+              {slotReviews.map((review) => (
+                <SlotRecommendation
+                  key={review.tracker}
+                  review={review}
+                  compact
+                  trackers={trackers}
+                />
+              ))}
+            </div>
           </section>
         )}
         {!!activity.length && (

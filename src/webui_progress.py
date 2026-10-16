@@ -24,6 +24,7 @@ class ProgressEvent(TypedDict, total=False):
     updated_at: float
     url: str
     tracker: str
+    slot_review: dict[str, object]
 
 
 _callback: Callable[[ProgressEvent], None] | None = None
@@ -88,6 +89,7 @@ def publish_progress(
     unit: str = "percent",
     url: str = "",
     tracker: str = "",
+    slot_review: dict[str, object] | None = None,
 ) -> None:
     event: ProgressEvent = {
         "op": "upsert",
@@ -103,6 +105,8 @@ def publish_progress(
     }
     if current is not None:
         event["current"] = float(current)
+    if slot_review is not None:
+        event["slot_review"] = slot_review
     if total is not None:
         event["total"] = float(total)
     _emit(event)

@@ -2603,6 +2603,7 @@ function AudionutsUAGUI() {
       item.group !== "activity" &&
       item.group !== "warning" &&
       item.group !== "duplicate_review" &&
+      item.group !== "slot_review" &&
       item.status !== "completed",
   );
 

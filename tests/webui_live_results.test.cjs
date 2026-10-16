@@ -18,6 +18,7 @@ function walk(value) {
       "mergeTrackerResults",
       "duplicateReviewProgress",
       "activityState",
+      "slotRecommendationState",
     ].includes(value.id?.name)
   )
     declarations.push(value);
@@ -33,6 +34,29 @@ for (const declaration of declarations)
   vm.runInContext(source.slice(declaration.start, declaration.end), context);
 const merge = (...args) =>
   JSON.parse(JSON.stringify(context.mergeTrackerResults(...args)));
+
+test("slot recommendations preserve allow, block and review wording", () => {
+  assert.equal(
+    context.slotRecommendationState("allow").title,
+    "Upload looks fine",
+  );
+  assert.equal(
+    context.slotRecommendationState("block").title,
+    "Upload not recommended",
+  );
+  assert.equal(
+    context.slotRecommendationState("review").title,
+    "Check before uploading",
+  );
+  assert.notEqual(
+    context.slotRecommendationState("allow").tone,
+    context.slotRecommendationState("block").tone,
+  );
+  assert.equal(
+    context.slotRecommendationState("unknown").title,
+    "Review tracker slot rules",
+  );
+});
 
 test("image activity shows retries, recovery and incomplete counts", () => {
   const state = (status, running = true, active = true) =>

@@ -593,8 +593,9 @@ async def process_media_files(prep_instance: Any, meta: Meta, videoloc: str, bdi
                         continue
                     for file in files:
                         ext = Path(file).suffix.lower()
-                        if ext in subtitle_exts:
-                            meta.subtitle_files.append(str(Path(Path(root) / file).resolve()))
+                        if ext in subtitle_exts and not file.startswith("._"):
+                            # Torrent layouts use the link's path within the release.
+                            meta.subtitle_files.append(str((Path(root) / file).absolute()))
             else:
                 parent_dir = str(Path(meta_path).parent)
                 if parent_dir and Path(parent_dir).exists():
@@ -603,7 +604,7 @@ async def process_media_files(prep_instance: Any, meta: Meta, videoloc: str, bdi
                         if (Path(parent_dir) / file).is_file():
                             ext = Path(file).suffix.lower()
                             if ext in subtitle_exts and file.lower().startswith(base_name.lower()):
-                                meta.subtitle_files.append(str(Path(Path(parent_dir) / file).resolve()))
+                                meta.subtitle_files.append(str((Path(parent_dir) / file).absolute()))
             meta.subtitle_files = sorted(set(meta.subtitle_files))
 
         video, meta.scene, meta.imdb_id = await prep_instance.scene_manager.is_scene(videopath, meta, meta.imdb_id)
@@ -1418,6 +1419,16 @@ async def finalize_metadata(
                 config=prep_instance.config,
             )
             meta.tvmaze_id = tvmaze_res if isinstance(tvmaze_res, int) else tvmaze_res[0]
+        if meta.tvdb_id == 0 and not both_ids_searched and (meta.imdb_id or meta.tmdb_id):
+            try:
+                series_id, series_name = await prep_instance.tvdb_handler.get_tvdb_by_external_id(imdb=meta.imdb_id, tmdb=meta.tmdb_id, tv_movie=meta.tv_movie)
+                if series_id:
+                    meta.tvdb_id = series_id
+                    if series_name:
+                        meta.tvdb_series_name = series_name
+                    logger.debug(f"[blue]Found TVDB series ID from external IDs: {series_id}[/blue]")
+            except Exception as e:
+                logger.error(f"[red]Error looking up TVDB by external ID: {e}[/red]")
         if meta.tvdb_id == 0:
             logger.debug("[yellow]No TVDB ID found, attempting to fetch...[/yellow]")
             try:

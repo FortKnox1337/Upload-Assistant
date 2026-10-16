@@ -323,25 +323,8 @@
                   className="ua-accent-indicator h-1.5 w-1.5 rounded-full"
                   aria-hidden="true"
                 />
-                {flag}
+                {flag === "Personal release" ? "Personal Release" : flag}
               </span>
-            ))}
-          </div>
-        )}
-        {!!review.notices?.length && (
-          <div className="space-y-2" aria-label="Release notices">
-            {review.notices.map((notice, index) => (
-              <p
-                key={index}
-                className={`rounded-lg border p-3 text-sm break-words ${notice.tone === "warning" ? "border-amber-500/60" : "[border-color:var(--ua-border)] opacity-80"}`}
-              >
-                {notice.tone === "warning" && (
-                  <strong className="block text-xs uppercase tracking-wide mb-1 text-amber-500">
-                    Please check
-                  </strong>
-                )}
-                {notice.text}
-              </p>
             ))}
           </div>
         )}
@@ -1160,6 +1143,7 @@
         !item.tracker ||
         !trackerResults.some((row) => row.tracker === item.tracker),
     );
+    const releaseNotices = prompt?.review?.notices || [];
     const active = running && !prompt && !media?.awaiting_input;
     const activity = displayedProgress
       .filter((item) => item.group === "activity")
@@ -1188,12 +1172,12 @@
       >
         <aside
           role="note"
-          aria-label="GUI beta notice"
+          aria-label="GUI preview notice"
           className="rounded-xl border border-amber-500/60 p-3 text-sm space-y-1"
         >
           <h3 className="flex items-center gap-2 font-semibold text-amber-500">
             <LucideIcon name="triangle-alert" className="h-4 w-4 shrink-0" />
-            GUI Mode is currently in Beta!
+            GUI Mode is currently in development
           </h3>
           <p className="opacity-80">
             GUI testing has mainly focused on TV and Movies. Books, Music and
@@ -1230,7 +1214,10 @@
             </section>
           )}
         {(running || result) && (
-          <section className="rounded-xl border [border-color:var(--ua-border)] p-4">
+          <section
+            className="rounded-xl border [border-color:var(--ua-border)] p-4"
+            aria-label="Run summary"
+          >
             <div className="flex items-center gap-2">
               <span
                 className={`h-2 w-2 rounded-full ${prompt ? "bg-amber-400" : running ? "bg-blue-500 animate-pulse" : "bg-gray-400"}`}
@@ -1238,7 +1225,7 @@
               <h3 className="font-semibold" role="status">
                 {title}
               </h3>
-              <span className="ml-auto text-xs opacity-60">GUI beta</span>
+              <span className="ml-auto text-xs opacity-60">GUI preview</span>
             </div>
             <p className="text-sm opacity-70 mt-2">
               {prompt
@@ -1248,6 +1235,23 @@
                   : "Review the reported results below. The console has the complete run details."}
             </p>
             <Warnings items={runWarnings} />
+            {!!releaseNotices.length && (
+              <div className="mt-3 space-y-2" aria-label="Release notices">
+                {releaseNotices.map((notice, index) => (
+                  <p
+                    key={index}
+                    className={`rounded-lg border p-3 text-sm break-words [overflow-wrap:anywhere] ${notice.tone === "warning" ? "border-amber-500/60" : "[border-color:var(--ua-border)] opacity-80"}`}
+                  >
+                    {notice.tone === "warning" && (
+                      <strong className="block text-xs uppercase tracking-wide mb-1 text-amber-500">
+                        Please check
+                      </strong>
+                    )}
+                    {notice.text}
+                  </p>
+                ))}
+              </div>
+            )}
             {active && (
               <div
                 className="flex items-center gap-2 mt-3 text-sm"

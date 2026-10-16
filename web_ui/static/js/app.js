@@ -7428,7 +7428,7 @@ function AudionutsUAGUI() {
           onClick={() => changeUploadView(view)}
           className={`rounded-md px-2 py-1.5 font-semibold ${uploadView === view ? "bg-blue-600 text-white" : "opacity-70 hover:opacity-100"}`}
         >
-          {view === "gui" ? "GUI [Beta]" : "Console"}
+          {view === "gui" ? "GUI [Preview]" : "Console"}
         </button>
       ))}
     </div>

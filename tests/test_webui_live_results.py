@@ -186,11 +186,12 @@ async def test_image_progress_reports_each_finished_image(monkeypatch, tmp_path)
     monkeypatch.setattr(uploadscreens, "upload_image_task", upload)
     meta = Meta(base_dir=str(tmp_path), uuid="images", imghost="imgbox")
     config = {"DEFAULT": {"img_host_1": "imgbox", "image_upload_delay": 0}, "TRACKERS": {}}
-    await uploadscreens._upload_screens(config, meta, 2, 1, 0, 2, [], {})
-    assert [event["current"] for event in events] == [0, 1, 2]
+    await uploadscreens.UploadScreensManager(config).upload_screens(meta, 2, 1, 0, 2, [], {})
+    assert [event["current"] for event in events] == [0, 1, 2, 2]
+    assert all(event["group"] == "images" for event in events)
     assert all(event["total"] == 2 for event in events)
     assert events[-1]["status"] == "completed"
-    assert events[-1]["detail"] == "Current image host: imgbox. 2 of 2 images uploaded successfully"
+    assert events[-1]["detail"] == "Current image host: imgbox"
 
 
 @pytest.mark.parametrize("message", [{"error": "Rejected", "api_key": "private-key"}, '{\n"error": "Rejected",\n"api_key": "private-key"\n}\nNext message'])

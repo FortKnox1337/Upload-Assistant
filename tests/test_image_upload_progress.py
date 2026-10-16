@@ -5,6 +5,7 @@
 import asyncio
 import json
 from pathlib import Path
+from unittest.mock import AsyncMock
 
 import httpx
 import pytest
@@ -18,6 +19,7 @@ def image_run(monkeypatch, tmp_path):
     events = []
     monkeypatch.setattr(webui_progress, "_emit", events.append)
     monkeypatch.setattr(uploadscreens, "screenshots_dir", lambda *_args: tmp_path)
+    monkeypatch.setattr(uploadscreens, "record_event_async", AsyncMock())
     real_sleep = asyncio.sleep
 
     async def no_delay(_delay):
@@ -31,7 +33,8 @@ def image_run(monkeypatch, tmp_path):
         meta = Meta(base_dir=str(tmp_path), uuid="image-progress", imghost=selected_host or hosts[0])
         config = {"DEFAULT": {**{f"img_host_{index + 1}": host for index, host in enumerate(hosts)}, "image_upload_delay": 0}, "TRACKERS": {}}
         monkeypatch.setattr(uploadscreens, "upload_image_task", upload)
-        result = await uploadscreens._upload_screens(config, meta, count, 1, 0, count, [], {})
+        result = await uploadscreens.UploadScreensManager(config).upload_screens(meta, count, 1, 0, count, [], {})
+        assert all(event["group"] == "images" for event in events)
         return result, events
 
     return run
@@ -54,7 +57,7 @@ async def test_progress_names_the_actual_image_host_before_any_error(image_run, 
     _result, events = await image_run(upload, selected_host=selected_host)
     assert events[0]["current"] == 0
     assert events[0]["status"] == "running"
-    assert all(event["detail"].startswith(f"Current image host: {host}. ") for event in events)
+    assert all(event["detail"].startswith(f"Current image host: {host}") for event in events)
 
 
 @pytest.mark.asyncio
@@ -83,7 +86,7 @@ async def test_retry_reason_arrives_before_recovery_and_clears_on_success(image_
     assert calls == 2
     assert len({event["id"] for event in events}) == 1
     assert events[-1]["status"] == "completed"
-    assert events[-1]["detail"] == "Current image host: imgbox. 1 of 1 images uploaded successfully"
+    assert events[-1]["detail"] == "Current image host: imgbox"
 
 
 @pytest.mark.asyncio
@@ -131,7 +134,7 @@ async def test_fallback_hosts_share_one_bar_and_preserve_partial_successes(image
         assert f"Trying next image host: {host}" in event["detail"]
     assert events[-1]["current"] == events[-1]["total"] == 2
     assert events[-1]["status"] == "completed"
-    assert events[-1]["detail"] == "Current image host: ptscreens. 2 of 2 images uploaded successfully"
+    assert events[-1]["detail"] == "Current image host: ptscreens"
 
 
 @pytest.mark.asyncio
@@ -175,6 +178,59 @@ async def test_image_host_error_details_are_redacted_before_streaming(image_run)
     assert "private-secret" not in output
     assert "private-token" not in output
     assert "Rejected" in output
+
+
+@pytest.mark.asyncio
+async def test_parallel_image_batches_have_separate_binary_progress_cards(image_run):
+    async def upload(args):
+        return uploaded(args)
+
+    first, second = await asyncio.gather(image_run(upload, count=1), image_run(upload, selected_host="ptscreens", count=1))
+    assert first[0][1] == second[0][1] == 1
+    events = first[1]
+    ids = {event["id"] for event in events}
+    assert len(ids) == 2
+    for progress_id in ids:
+        batch = [event for event in events if event["id"] == progress_id]
+        assert batch[0]["current"] == 0
+        assert (batch[-1]["current"], batch[-1]["total"], batch[-1]["status"]) == (1, 1, "completed")
+        assert len({event["detail"] for event in batch}) == 1
+    assert {event["detail"] for event in events} == {"Current image host: imgbox", "Current image host: ptscreens"}
+
+
+@pytest.mark.asyncio
+async def test_no_source_images_do_not_publish_an_empty_progress_card(image_run):
+    async def upload(_args):
+        pytest.fail("No image should be uploaded")
+
+    (images, count), events = await image_run(upload, count=0)
+    assert (images, count, events) == ([], 0, [])
+
+
+@pytest.mark.asyncio
+async def test_custom_image_fallback_resets_reupload_count(monkeypatch, tmp_path):
+    events = []
+    monkeypatch.setattr(webui_progress, "_emit", events.append)
+    monkeypatch.setattr(uploadscreens, "screenshots_dir", lambda *_args: tmp_path)
+    monkeypatch.setattr(uploadscreens, "record_event_async", AsyncMock())
+    for filename in ("image-1.png", "image-2.png"):
+        (tmp_path / filename).write_bytes(b"image")
+
+    async def upload(args):
+        if args[1] == "imgbox" and Path(args[0]).name == "image-2.png":
+            return {"status": "failed", "reason": "duplicate image"}
+        return uploaded(args)
+
+    monkeypatch.setattr(uploadscreens, "upload_image_task", upload)
+    config = {"DEFAULT": {"img_host_1": "imgbox", "img_host_2": "ptscreens", "image_upload_concurrency": 1}, "TRACKERS": {}}
+    meta = Meta(base_dir=str(tmp_path), uuid="image-progress", imghost="imgbox")
+    images, count = await uploadscreens.UploadScreensManager(config).upload_screens(meta, 2, 1, 0, 2, ["image-1.png", "image-2.png"], {})
+    assert count == len(images) == 2
+    assert len({event["id"] for event in events}) == 1
+    switch = next(event for event in events if "Trying next image host:" in event["detail"])
+    assert (switch["current"], switch["total"]) == (0, 2)
+    assert all(event["current"] <= event["total"] == 2 for event in events)
+    assert events[-1]["status"] == "completed"
 
 
 @pytest.mark.asyncio

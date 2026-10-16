@@ -2701,6 +2701,7 @@ function AudionutsUAGUI() {
               : 0;
             const isCompleted = item.status === "completed";
             const isFailed = item.status === "failed";
+            const isRetrying = item.status === "retrying";
             // Speed meters show a rate against a limit: green when under it, amber when over.
             const isSpeedMeter = item.unit === "kbps";
             const isOverLimit = isSpeedMeter && hasTotal && current > total;
@@ -2712,24 +2713,30 @@ function AudionutsUAGUI() {
                 ? isDarkMode
                   ? "text-rose-300"
                   : "text-rose-700"
-                : isSpeedMeter
-                  ? isOverLimit
-                    ? isDarkMode
-                      ? "text-amber-300"
-                      : "text-amber-700"
-                    : isDarkMode
-                      ? "text-emerald-300"
-                      : "text-emerald-700"
-                  : "ua-accent-text";
+                : isRetrying
+                  ? isDarkMode
+                    ? "text-amber-300"
+                    : "text-amber-700"
+                  : isSpeedMeter
+                    ? isOverLimit
+                      ? isDarkMode
+                        ? "text-amber-300"
+                        : "text-amber-700"
+                      : isDarkMode
+                        ? "text-emerald-300"
+                        : "text-emerald-700"
+                    : "ua-accent-text";
             const progressTone = isCompleted
               ? "bg-emerald-500"
               : isFailed
                 ? "bg-rose-500"
-                : isSpeedMeter
-                  ? isOverLimit
-                    ? "bg-amber-500"
-                    : "bg-emerald-500"
-                  : "ua-accent-indicator";
+                : isRetrying
+                  ? "bg-amber-500"
+                  : isSpeedMeter
+                    ? isOverLimit
+                      ? "bg-amber-500"
+                      : "bg-emerald-500"
+                    : "ua-accent-indicator";
             let summary = "";
             if (hasTotal) {
               if (item.unit === "percent")
@@ -2743,14 +2750,16 @@ function AudionutsUAGUI() {
                 key={item.id}
                 className={`rounded-lg border px-3 py-2 ${isDarkMode ? "border-gray-700 bg-gray-900" : "border-gray-200 bg-gray-50"}`}
               >
-                <div className="flex items-center justify-between gap-3">
+                <div
+                  className={`flex items-center justify-between ${item.group === "images" ? "flex-wrap gap-x-3 gap-y-1" : "gap-3"}`}
+                >
                   <div className="min-w-0">
                     <p
-                      className={`font-medium truncate ${compact ? "text-sm" : "text-[15px]"} ${isDarkMode ? "text-white" : "text-gray-900"}`}
+                      className={`font-medium ${item.group === "images" ? "break-words" : "truncate"} ${compact ? "text-sm" : "text-[15px]"} ${isDarkMode ? "text-white" : "text-gray-900"}`}
                     >
                       {item.label || item.id}
                     </p>
-                    {item.detail && (
+                    {item.detail && item.group !== "images" && (
                       <p
                         className={`text-xs truncate ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}
                       >
@@ -2759,12 +2768,26 @@ function AudionutsUAGUI() {
                     )}
                   </div>
                   <div
-                    className={`text-xs font-semibold whitespace-nowrap ${statusTone}`}
+                    className={`text-xs font-semibold whitespace-nowrap ${item.group === "images" ? "ml-auto" : ""} ${statusTone}`}
                   >
+                    {isRetrying && summary ? "Retrying · " : ""}
                     {summary ||
-                      (isCompleted ? "Done" : isFailed ? "Failed" : "Running")}
+                      (isCompleted
+                        ? "Done"
+                        : isFailed
+                          ? "Failed"
+                          : isRetrying
+                            ? "Retrying"
+                            : "Running")}
                   </div>
                 </div>
+                {item.detail && item.group === "images" && (
+                  <p
+                    className={`mt-1 text-xs break-words whitespace-pre-wrap [overflow-wrap:anywhere] ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}
+                  >
+                    {item.detail}
+                  </p>
+                )}
                 <div
                   className={`mt-2 h-2.5 overflow-hidden rounded-full ${isDarkMode ? "bg-gray-700" : "bg-gray-200"}`}
                 >

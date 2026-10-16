@@ -16,7 +16,7 @@ def _image_upload_meta() -> Meta:
 
 
 def test_upload_screens_manager_does_not_count_a_reused_image_list() -> None:
-    async def fake_upload(*args, **kwargs):
+    async def fake_upload(*args, **_kwargs):
         meta = args[1]
         return meta.image_list, len(meta.image_list)
 
@@ -34,7 +34,7 @@ def test_upload_screens_manager_does_not_count_a_reused_image_list() -> None:
 
 
 def test_upload_screens_manager_records_the_final_host_and_actual_success() -> None:
-    async def fake_upload(*args, **kwargs):
+    async def fake_upload(*args, **_kwargs):
         meta = args[1]
         return_dict = args[7]
         meta.imghost = "ptscreens"
@@ -60,7 +60,7 @@ def test_upload_screens_manager_records_the_final_host_and_actual_success() -> N
 
 
 def test_upload_screens_manager_records_an_attempted_failure() -> None:
-    async def fake_upload(*args, **kwargs):
+    async def fake_upload(*args, **_kwargs):
         meta = args[1]
         return_dict = args[7]
         return_dict["_stats_image_upload_attempts"] = 1
@@ -338,13 +338,13 @@ def test_upload_screens_manager_reports_webui_progress_across_fallback(tmp_path:
         webui_progress.clear_progress_callback()
 
     assert len({event["id"] for event in events}) == 1
-    assert [(event["detail"], event["current"], event["total"], event["status"]) for event in events] == [
-        ("imgbox", 0, 2, "running"),
-        ("imgbox", 1, 2, "running"),
-        ("ptscreens", 1, 2, "running"),
-        ("ptscreens", 2, 2, "running"),
-        ("ptscreens", 2, 2, "completed"),
-    ]
+    assert all(event["group"] == "images" for event in events)
+    assert (events[0]["current"], events[0]["total"], events[0]["status"]) == (0, 2, "running")
+    switch = next(event for event in events if "Trying next image host: ptscreens" in str(event["detail"]))
+    assert (switch["current"], switch["total"]) == (1, 2)
+    assert str(switch["detail"]).startswith("Current image host: ptscreens")
+    assert (events[-1]["current"], events[-1]["total"], events[-1]["status"]) == (2, 2, "completed")
+    assert events[-1]["detail"] == "Current image host: ptscreens"
 
 
 def test_upload_screens_manager_fails_progress_card_on_partial_upload(tmp_path: Path) -> None:

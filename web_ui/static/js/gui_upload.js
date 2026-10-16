@@ -1303,9 +1303,7 @@
                   />
                 </svg>
                 <span>
-                  {(liveActivity?.status === "retrying"
-                    ? "Retrying image uploads…"
-                    : liveActivity?.label) ||
+                  {liveActivity?.label ||
                     (trackerResults.some((item) => item.outcome === "Checking…")
                       ? "Checking trackers…"
                       : trackerResults.some(

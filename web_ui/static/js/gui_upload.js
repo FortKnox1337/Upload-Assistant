@@ -1047,6 +1047,55 @@
     );
   }
 
+  function ReleaseNotices({ items }) {
+    if (!items.length) return null;
+    const debugNotice = items.find((item) =>
+      item.text.startsWith("Debug run:"),
+    );
+    const prepNotices = debugNotice
+      ? items.filter((item) => item.text.startsWith("Prep material saved to "))
+      : [];
+    const otherNotices = items.filter(
+      (item) => item !== debugNotice && !prepNotices.includes(item),
+    );
+    return (
+      <div className="mt-3 space-y-2" aria-label="Release notices">
+        {debugNotice && (
+          <aside
+            role="note"
+            aria-label="Debug run"
+            className="rounded-lg border border-amber-500/60 p-3 text-sm break-words [overflow-wrap:anywhere]"
+          >
+            <h4 className="font-semibold text-amber-500">Debug run</h4>
+            <p className="mt-1">
+              {debugNotice.text.replace(/^Debug run:\s*(.)/, (_, first) =>
+                first.toUpperCase(),
+              )}
+            </p>
+            {prepNotices.map((notice, index) => (
+              <p key={index} className="mt-2 opacity-80">
+                {notice.text}
+              </p>
+            ))}
+          </aside>
+        )}
+        {otherNotices.map((notice, index) => (
+          <p
+            key={index}
+            className={`rounded-lg border p-3 text-sm break-words [overflow-wrap:anywhere] ${notice.tone === "warning" ? "border-amber-500/60" : "[border-color:var(--ua-border)] opacity-80"}`}
+          >
+            {notice.tone === "warning" && (
+              <strong className="block text-xs uppercase tracking-wide mb-1 text-amber-500">
+                Please check
+              </strong>
+            )}
+            {notice.text}
+          </p>
+        ))}
+      </div>
+    );
+  }
+
   function Warnings({ items }) {
     if (!items.length) return null;
     return (
@@ -1235,23 +1284,7 @@
                   : "Review the reported results below. The console has the complete run details."}
             </p>
             <Warnings items={runWarnings} />
-            {!!releaseNotices.length && (
-              <div className="mt-3 space-y-2" aria-label="Release notices">
-                {releaseNotices.map((notice, index) => (
-                  <p
-                    key={index}
-                    className={`rounded-lg border p-3 text-sm break-words [overflow-wrap:anywhere] ${notice.tone === "warning" ? "border-amber-500/60" : "[border-color:var(--ua-border)] opacity-80"}`}
-                  >
-                    {notice.tone === "warning" && (
-                      <strong className="block text-xs uppercase tracking-wide mb-1 text-amber-500">
-                        Please check
-                      </strong>
-                    )}
-                    {notice.text}
-                  </p>
-                ))}
-              </div>
-            )}
+            <ReleaseNotices items={releaseNotices} />
             {active && (
               <div
                 className="flex items-center gap-2 mt-3 text-sm"

@@ -1185,6 +1185,33 @@
         className="ua-gui-upload min-h-0 min-w-0 flex-1 overflow-auto space-y-4 pb-4"
         data-testid="gui-upload"
       >
+        <aside
+          role="note"
+          aria-label="GUI beta notice"
+          className="rounded-xl border border-amber-500/60 p-3 text-sm space-y-1"
+        >
+          <h3 className="flex items-center gap-2 font-semibold text-amber-500">
+            <LucideIcon name="triangle-alert" className="h-4 w-4 shrink-0" />
+            GUI Mode is currently in Beta!
+          </h3>
+          <p className="opacity-80">
+            GUI testing has mainly focused on TV and Movies. Books, Music and
+            Games still need full GUI upload testing.
+          </p>
+          <p className="opacity-80">
+            Some prompts or status updates may be missing. Switch to Console for
+            the full output. Feedback is welcome:{" "}
+            <a
+              href="https://github.com/wastaken7/Upload-Assistant/issues"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="ua-accent-link hover:underline"
+            >
+              report issues on GitHub ↗
+            </a>
+            .
+          </p>
+        </aside>
         {!running &&
           !result &&
           !error &&
@@ -1210,7 +1237,7 @@
               <h3 className="font-semibold" role="status">
                 {title}
               </h3>
-              <span className="ml-auto text-xs opacity-60">GUI preview</span>
+              <span className="ml-auto text-xs opacity-60">GUI beta</span>
             </div>
             <p className="text-sm opacity-70 mt-2">
               {prompt

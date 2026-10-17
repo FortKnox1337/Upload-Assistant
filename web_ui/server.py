@@ -2687,7 +2687,9 @@ def _screenshot_capture_supported(meta_data: Mapping[str, object]) -> bool:
 def _screenshot_review_meta(temp_dir: Path, meta_data: Mapping[str, object]) -> Mapping[str, object]:
     """Include cached hosted images when a resumed run has not restored them into meta.json yet."""
     result = dict(meta_data)
-    if result.get("image_list"):
+    # Standalone preparation deliberately clears hosted links while local
+    # frames are being reviewed, including when retrying a cached upload.
+    if result.get("image_list") or result.get("imagehost_upload_only"):
         return result
     try:
         cached = _json_load_dict((temp_dir / "image_data.json").read_text(encoding="utf-8"))

@@ -772,6 +772,9 @@ let argumentCategories = [
       {
         label: "--skip-imagehost-upload",
       },
+      {
+        label: "--imagehost-upload-only",
+      },
     ],
   },
   {
@@ -5653,14 +5656,24 @@ function AudionutsUAGUI() {
     }).catch((error) => console.error("Failed to dismiss session:", error));
   };
 
+  const buildExecutionArguments = (customArgs, itemArgs, imagehostOnly) =>
+    [customArgs, itemArgs, imagehostOnly ? "--imagehost-upload-only" : ""]
+      .filter(Boolean)
+      .join(" ");
+
   const executeSinglePath = async (
     path,
     newSessionId,
     itemArgs = "",
     tabId = activeTabIdRef.current,
     label = "",
+    imagehostOnly = false,
   ) => {
-    const executionArgs = [customArgs, itemArgs].filter(Boolean).join(" ");
+    const executionArgs = buildExecutionArguments(
+      customArgs,
+      itemArgs,
+      imagehostOnly,
+    );
     const reportError = (message) => {
       appendSystemMessage(message, "error", tabId);
       return false;
@@ -5923,7 +5936,7 @@ function AudionutsUAGUI() {
     if (runtime) runtime.view.form.pathInputError = message;
   };
 
-  const executeCommand = async () => {
+  const executeCommand = async ({ imagehostOnly = false } = {}) => {
     if (screenshotMode) return;
     window.uaPromptSound?.unlock();
     if (isExecuting) return;
@@ -5980,6 +5993,7 @@ function AudionutsUAGUI() {
         items.length === 1 ? items[0].args : "",
         tabId,
         getUploadTabTitle(items),
+        imagehostOnly,
       );
     } catch (error) {
       reportTabPathError(tabId, `Could not prepare upload: ${error.message}`);
@@ -6158,11 +6172,27 @@ function AudionutsUAGUI() {
     : undefined;
   const getExecuteButtonLabel = () => {
     if (isExecuting) return activeTabScheduled ? "Scheduled" : "Executing...";
+    if (/(?:^|\s)--imagehost-upload-only(?:\s|$)/.test(customArgs)) {
+      return uploadSlotsFull ? "Schedule Images" : "Prepare Images";
+    }
     const noun = selectedPaths.length > 1 ? "Queue" : "Upload";
     if (!uploadSlotsFull) return `Execute ${noun}`;
     return schedulingEnabled ? `Schedule ${noun}` : "All upload slots busy";
   };
   const killButtonLabel = activeTabScheduled ? "Cancel" : "Kill";
+
+  const renderPrepareImagesButton = () => (
+    <button
+      type="button"
+      onClick={() => executeCommand({ imagehostOnly: true })}
+      disabled={executeDisabled}
+      title="Capture and host screenshots, then stop before tracker uploads. Successful images are saved for a later upload."
+      className="ua-config-service-action mt-2 flex w-full items-center justify-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50"
+    >
+      <ScreenshotsIcon />
+      {uploadSlotsFull ? "Schedule Images" : "Prepare Images"}
+    </button>
+  );
 
   const renderCloseUploadTabDialog = () => {
     const tab = uploadTabs.find((item) => item.id === pendingCloseTabId);
@@ -8202,6 +8232,7 @@ function AudionutsUAGUI() {
                     <TrashIcon />
                   </button>
                 </div>
+                {renderPrepareImagesButton()}
                 {renderTrackerSelector()}
               </div>
             )}
@@ -9138,6 +9169,7 @@ function AudionutsUAGUI() {
                         {isExecuting ? "Kill & Clear" : "Clear"}
                       </button>
                     </div>
+                    {renderPrepareImagesButton()}
                     {renderTrackerSelector()}
                   </>
                 )}

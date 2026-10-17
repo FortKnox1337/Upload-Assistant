@@ -176,6 +176,9 @@ class Prep:
         # 2. Disc and Category Detection
         videoloc, bdinfo = await prep_helpers.detect_disc_and_category(self, meta)
 
+        if meta.imagehost_upload_only and meta.category in {"MUSIC", "GAME"}:
+            raise ValueError("--imagehost-upload-only supports video screenshots and BOOK images; MUSIC and GAME do not capture local video screenshots.")
+
         # Music has its own release-oriented metadata pipeline.  It must not flow
         # through video/media-info, TMDB, screenshots or episode handling. It
         # still needs the shared tracker/client stage: qBittorrent path matching
@@ -230,7 +233,8 @@ class Prep:
 
         # These tasks only create local artifacts. Posting and tracker upload
         # decisions remain in the upload stage after duplicate checks.
-        await restart_early_artifact_tasks(meta, client, self.config)
+        if not meta.imagehost_upload_only:
+            await restart_early_artifact_tasks(meta, client, self.config)
 
         # 7. Sonarr, Radarr and Metadata Searches
         await prep_helpers.search_metadata(

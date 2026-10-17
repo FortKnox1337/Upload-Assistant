@@ -77,6 +77,22 @@ If you pass a `.txt` file as the main positional input path (without specifying 
 - `-ih`, `--imghost HOST`: Select image host.
   - Choices: `catbox`, `imgbb`, `imgbox`, `pixhost`, `lensdump`, `ptscreens`, `onlyimage`, `dalexni`, `zipline`, `midnightscene`, `passtheimage`, `seedpool_cdn`, `utppm`, `lostimg`.
 - `-siu`, `--skip-imagehost-upload`: Skip uploading images to an image host.
+- `--imagehost-upload-only`: Capture/review and upload screenshots to image hosts, save the resulting links, and exit before tracker uploads.
+  - Runs without tracker login/duplicate checks, torrent hashing, client injection, cross-seeding, Usenet posting, or post-upload hooks.
+  - Asks for confirmation before hosting; use `-ua` for an unattended preparation.
+  - Requires every requested screenshot to upload successfully. A partial result is saved and returns a failure exit code, regardless of `min_successful_image_uploads`.
+  - Rerunning the command retries remaining images. Later normal uploads reuse the prepared images; replaced/deleted frames are invalidated.
+  - Selected trackers still determine compatible image hosts when Smart Image Host Selection is enabled. Actual upload checks run during the later normal upload.
+  - Supports video screenshots, additional captured disc/playlist frames, and extracted ebook pages (BOOK). MUSIC and GAME do not capture local video screenshots in this mode.
+  - Other image types, including covers, comparisons, menus, spectrograms and HDR plots, are hosted during the normal upload workflow.
+  - Cannot be combined with `--skip-imagehost-upload`, `--site-check`, or `--site-upload`.
+
+```console
+python upload.py "/path/Example.Release.mkv" --imagehost-upload-only --screens 6
+python upload.py "/path/Example.Release.mkv" --trackers AITHER
+```
+
+Image-only queue preparation does not mark entries in the normal upload queue as processed.
 
 ## Description inputs
 

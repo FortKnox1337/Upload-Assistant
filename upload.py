@@ -1058,6 +1058,9 @@ def xxx_min_successful_uploads(meta: Meta, min_successful_uploads: int) -> int:
 
 async def process_meta(meta: Meta, base_dir: str) -> bool:
     """Process the metadata for each queued path."""
+    if meta.imagehost_upload_only and (meta.skip_imghost_upload or meta.site_check or meta.site_upload):
+        logger.error("[red]--imagehost-upload-only cannot be combined with --skip-imagehost-upload, --site-check, or --site-upload.[/red]")
+        return False
     if not meta.imghost:
         meta.imghost = config["DEFAULT"]["img_host_1"]
         try:
@@ -1123,6 +1126,15 @@ async def process_meta(meta: Meta, base_dir: str) -> bool:
     logger.debug(f"Trackers list before editing: {meta.trackers}")
     await write_meta_file(meta)
     _publish_webui_preview_target(cast(str, meta.path or ""), meta.uuid or None)
+
+    if meta.imagehost_upload_only:
+        from src.imagehost_only import prepare_imagehost_upload_only
+
+        try:
+            return await prepare_imagehost_upload_only(meta, config, takescreens_manager, uploadscreens_manager)
+        except Exception as error:
+            logger.error(f"[red]Image-only preparation failed: {error}[/red]")
+            return False
 
     # For BOOK category, certain trackers (e.g. CAPYBARABR) require title, author, year and language.
     # Prompt here - on the shared meta - so the data flows into every tracker's upload
@@ -1599,6 +1611,9 @@ async def process_meta(meta: Meta, base_dir: str) -> bool:
             from src.screenshot_review import staged_remote_uploads
 
             reviewed_uploads = staged_remote_uploads(Path(meta.base_dir) / "tmp" / meta.uuid, cast(list[dict[str, Any]], meta.image_list or []))
+            from src.imagehost_only import restore_prepared_images
+
+            prepared_images = await restore_prepared_images(meta)
             if (len(meta.image_list) < cutoff or reviewed_uploads) and meta.skip_imghost_upload is False and meta.category not in ("GAME", "MUSIC"):
                 # Validate and (if needed) rehost images to tracker-approved hosts before uploading any new screenshots.
                 trackers_with_image_host_requirements = {
@@ -1731,7 +1746,7 @@ async def process_meta(meta: Meta, base_dir: str) -> bool:
                     logger.debug(
                         f"[cyan]Image host debug: pre-upload_screens meta.imghost={meta.imghost} image_list={len(image_list_for_debug)} cutoff={meta.cutoff} screens={meta.screens}[/cyan]"
                     )
-                return_dict: dict[str, Any] = {}
+                return_dict: dict[str, Any] = {"_uploaded_image_files": set(prepared_images)}
                 try:
                     default_cfg_obj = config.get("DEFAULT", {})
                     default_cfg = cast(dict[str, Any], default_cfg_obj) if isinstance(default_cfg_obj, dict) else {}
@@ -2412,7 +2427,10 @@ async def do_the_thing(base_dir: str) -> None:
             if imghost_val:
                 active_imghost = imghost_val
 
-        is_valid, config_errors, config_warnings = validate_config(config, active_trackers, active_imghost)
+        validation_config = config
+        if meta.imagehost_upload_only and "USENET" in config:
+            validation_config = {**config, "USENET": {**config["USENET"], "enabled": False}}
+        is_valid, config_errors, config_warnings = validate_config(validation_config, [] if meta.imagehost_upload_only else active_trackers, active_imghost)
 
         if not is_valid:
             logger.info("[bold red]Configuration validation failed:[/bold red]")
@@ -2455,14 +2473,14 @@ async def do_the_thing(base_dir: str) -> None:
         if webui_roots is not None and not is_generated_queue_path(path):
             path = validate_subprocess_path(path)
 
-        is_binary = await get_mkbrr_path(base_dir)
+        is_binary = None if meta.imagehost_upload_only else await get_mkbrr_path(base_dir)
         if not meta.mkbrr:
             try:
                 meta.mkbrr = config["DEFAULT"].get("mkbrr", False)
             except ValueError:
                 logger.debug("[yellow]Invalid mkbrr config value, defaulting to False[/yellow]")
                 meta.mkbrr = False
-        if meta.mkbrr and not is_binary:
+        if meta.mkbrr and not is_binary and not meta.imagehost_upload_only:
             logger.info("[bold red]mkbrr binary is not available. Please ensure it is installed correctly.[/bold red]")
             logger.info("[bold red]Reverting to Torf[/bold red]")
             logger.info("")
@@ -2475,6 +2493,7 @@ async def do_the_thing(base_dir: str) -> None:
         processed_files_count = 0
         skipped_files_count = 0
         base_meta = meta.copy()
+        imagehost_preparation_failed = False
 
         for queue_item in queue_list:
             total_files = len(queue_list)
@@ -2538,7 +2557,8 @@ async def do_the_thing(base_dir: str) -> None:
                 meta.path = path
                 meta.uuid = ""
                 set_stats_context(debug=bool(meta.debug), category="")
-                await record_event_async("item", operation="started", outcome="success")
+                if not meta.imagehost_upload_only:
+                    await record_event_async("item", operation="started", outcome="success")
                 _publish_webui_preview_target(path)
 
                 if not path:
@@ -2583,6 +2603,15 @@ async def do_the_thing(base_dir: str) -> None:
                 meta_success = await process_meta(meta, base_dir)
             finally:
                 await cancel_and_drain_early_artifact_tasks(meta.uuid)
+            if meta.imagehost_upload_only:
+                # Preparation must not enter tracker/client/cross-seed flows or
+                # mark a normal upload queue entry as uploaded/processed.
+                imagehost_preparation_failed |= not meta_success
+                processed_files_count += 1
+                logger.info(f"[cyan]Image preparation: processed {processed_files_count}/{total_files} items.[/cyan]")
+                await cleanup_manager.cleanup()
+                cleanup_manager.reset_terminal()
+                continue
             if not meta_success:
                 set_stats_context(debug=bool(meta.debug), category=str(meta.category or ""))
                 await record_event_async("item", operation="completed", outcome="error")
@@ -3042,6 +3071,8 @@ async def do_the_thing(base_dir: str) -> None:
             gc.collect()
             cleanup_manager.reset_terminal()
         current_release_log_path.set(None)
+        if imagehost_preparation_failed:
+            raise SystemExit(1)
 
     except Exception as e:
         logger.info(f"[bold red]An unexpected error occurred: {escape(str(e))}[/bold red]")

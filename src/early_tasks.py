@@ -82,7 +82,7 @@ def is_usenet_only(meta: Meta) -> bool:
 async def create_base_torrents_early(meta: Meta, client: Clients) -> None:
     """Reuse or hash BASE torrents while metadata and screenshots are processed."""
     task_started = time.perf_counter()
-    if meta.nohash or meta.rehash or meta.force_recheck or is_usenet_only(meta):
+    if meta.imagehost_upload_only or meta.nohash or meta.rehash or meta.force_recheck or is_usenet_only(meta):
         logger.debug("[cyan]Skipping early torrent creation due to hashing or tracker settings.[/cyan]")
         return
 
@@ -133,7 +133,7 @@ def needs_usenet_archive(meta: Meta) -> bool:
 async def prepare_usenet_archive_early(meta: Meta, config: Mapping[str, Any]) -> None:
     """Create archive/PAR2 files before duplicate confirmation, never post them."""
     usenet_cfg = config.get("USENET", {})
-    if not needs_usenet_archive(meta) or not isinstance(usenet_cfg, Mapping) or usenet_cfg.get("skip_archive", False):
+    if meta.imagehost_upload_only or not needs_usenet_archive(meta) or not isinstance(usenet_cfg, Mapping) or usenet_cfg.get("skip_archive", False):
         return
     try:
         from src.usenetcreate import prepare_and_upload_usenet

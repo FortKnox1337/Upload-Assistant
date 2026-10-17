@@ -243,6 +243,7 @@ class Meta:
     igdb_rating: float | str = ""
     igdb_url: str | None = None
     image_list: list[dict[str, Any]] = field(default_factory=list)
+    imagehost_upload_only: bool = False
     image_sizes: dict[str, Any] = field(default_factory=dict)
     imdb_id: int | None = None
     tmdb_imdb_id: int = 0

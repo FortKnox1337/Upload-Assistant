@@ -801,7 +801,7 @@ async def process_trackers_and_torrent(
     if "description" not in meta or meta.description is None:
         meta.description = ""
 
-    meta.skip_trackers = False
+    meta.skip_trackers = meta.imagehost_upload_only
 
     if meta.trackers:
         trackers = meta.trackers
@@ -918,7 +918,14 @@ def _should_fetch_bluray_info(meta: Meta, get_bluray_info: bool, add_bluray_link
 
 def _should_lookup_torrent_properties(meta: Meta, ids: dict[str, Any] | None) -> bool:
     """Avoid repeating a client lookup after a reusable torrent was resolved."""
-    return bool(meta.infohash is not None and not meta.base_torrent_created and not meta.we_checked_them_all and not meta.reuse_torrent_path and not ids)
+    return bool(
+        not meta.imagehost_upload_only
+        and meta.infohash is not None
+        and not meta.base_torrent_created
+        and not meta.we_checked_them_all
+        and not meta.reuse_torrent_path
+        and not ids
+    )
 
 
 async def search_metadata(

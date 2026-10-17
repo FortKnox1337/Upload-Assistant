@@ -190,6 +190,14 @@ While an upload is active, the workspace changes from setup controls to live run
 
 ### Generated screenshots
 
+Choose **Prepare Images** in the upload controls to capture and host screenshots without submitting the release to a tracker. Select the intended trackers and screenshot arguments first so host selection and capture use the intended settings. The action runs `--imagehost-upload-only` for this execution; it does not add the flag to your saved arguments.
+
+Before hosting begins, the run pauses for confirmation (unless unattended mode is selected). Open **Screenshots** to review, replace, add, or delete frames, then confirm image hosting in the output panel. The final message shows how many requested images were uploaded. Every requested image must succeed; a partial preparation is saved and reported as failed, and **Prepare Images** can be run again to retry the remaining files.
+
+After preparation completes, use **Execute Upload** normally to reuse the saved images. Tracker checks and submission still happen during that later run. The flag is also available in **Arguments → Screenshots / Images**; remove it before a normal upload if you added it yourself.
+
+**Prepare Images** uses the same execution slots as uploads and becomes **Schedule Images** when scheduling is available. It does not hash torrents, inject them into a client, post to Usenet, or run post-upload hooks.
+
 When screenshot capture has completed, open **Screenshots** to review frames before image hosting. Screenshots are grouped for the main title and any additional discs or playlists.
 
 Depending on the screenshot state, you can:

@@ -172,6 +172,7 @@ Common options:
   -tvdb, --tvdb              Specify the TVDB id to use
   --queue (queue name)       Process an entire folder (including files/subfolders) in a queue
   -mf, --manual_frames       Comma-separated list of frame numbers to use for screenshots
+  --imagehost-upload-only    Prepare and host screenshots without uploading to trackers
   --description              Inline custom description block
   -df, --descfile            Path to custom description file
   -ov, --overview            Overview/synopsis override for any category
@@ -855,7 +856,13 @@ class Args:
             ],
         )
         action_ih.completer = imghost_completer
-        parser.add_argument("-siu", "--skip-imagehost-upload", dest="skip_imghost_upload", action="store_true", required=False, help="Skip Uploading to an image host")
+        imagehost_mode = parser.add_mutually_exclusive_group()
+        imagehost_mode.add_argument("-siu", "--skip-imagehost-upload", dest="skip_imghost_upload", action="store_true", required=False, help="Skip Uploading to an image host")
+        imagehost_mode.add_argument(
+            "--imagehost-upload-only",
+            action="store_true",
+            help="Capture and upload screenshots to image hosts, then exit without uploading to trackers. Save successful images for a later upload or retry.",
+        )
         parser.add_argument("-th", "--torrenthash", nargs=1, required=False, help="Torrent Hash to re-use from your client's session directory")
         parser.add_argument("-nfo", "--nfo", action="store_true", required=False, help="Use .nfo in directory for description")
         parser.add_argument("-k", "--keywords", nargs=1, required=False, help="Add comma separated keywords e.g. 'keyword, keyword2, etc'")
@@ -1364,6 +1371,9 @@ class Args:
                 meta[key] = meta.get(key)
             # if key == 'help' and value == True:
             # parser.print_help()
+
+        if meta.imagehost_upload_only and (meta.site_check or meta.site_upload):
+            parser.error("--imagehost-upload-only cannot be combined with --site-check or --site-upload")
 
         if parsed_args.get("archive_password"):
             meta.usenet_archive_password_is_random = str(meta.archive_password).lower() == "random"

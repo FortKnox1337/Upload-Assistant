@@ -840,7 +840,7 @@ async def _upload_screens(
 
     screenshot_path = screenshots_dir(meta.base_dir, meta.uuid)
 
-    initial_img_host = default_config[f"img_host_{img_host_num}"]
+    initial_img_host = default_config.get(f"img_host_{img_host_num}")
     img_host = meta.imghost
 
     image_list = meta.image_list
@@ -1131,6 +1131,11 @@ async def _upload_screens(
             logger.error(f"[red]Error during uploads: {e!s}[/red]")
 
         successfully_uploaded = [(index, result) for index, result in results if result["status"] == "success"]
+        # Image-only preparation persists these source-to-URL associations so
+        # later runs can retry failed files without uploading successful ones.
+        uploaded_results = return_dict.setdefault("_uploaded_image_results", {})
+        for index, result in successfully_uploaded:
+            uploaded_results[str(Path(upload_tasks[index][1]).resolve())] = {**result, "host": img_host}
         return_dict["_stats_image_upload_successes"] = int(return_dict.get("_stats_image_upload_successes", 0) or 0) + len(successfully_uploaded)
         uploaded_bytes = 0
         for index, _result in successfully_uploaded:
@@ -1178,7 +1183,8 @@ async def _upload_screens(
                     total_screens,
                     custom_img_list,
                     return_dict,
-                    retry_mode=True,
+                    retry_mode=retry_mode,
+                    max_retries=max_retries,
                     allowed_hosts=allowed_hosts,
                     progress=progress,
                 )

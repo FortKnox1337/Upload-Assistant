@@ -61,10 +61,11 @@ def test_missing_tvdb_key_has_readable_notice_and_preserves_console_message(monk
     with caplog.at_level(logging.INFO, logger=logger.name):
         assert tvdb._get_tvdb_or_warn({"DEFAULT": {}}) is None
         assert tvdb._get_tvdb_or_warn({"DEFAULT": {}}) is None
-    assert "TVDB API key is missing in config.py" in caplog.text
+    assert "TVDB API key is not configured. Direct TVDB lookups are unavailable" in caplog.text
+    assert "TVDB IDs will be obtained from TMDb when available" in caplog.text
     assert len(warning_events) == 1
-    assert warning_events[0]["label"] == "TVDB lookup skipped"
-    assert warning_events[0]["detail"] == "No TVDB API key is configured. The upload will continue without TVDB metadata."
+    assert warning_events[0]["label"] == "Direct TVDB lookup unavailable"
+    assert warning_events[0]["detail"] == "No TVDB API key is configured. Direct TVDB lookups are unavailable; TVDB IDs can still be obtained from TMDb when available."
 
 
 @pytest.mark.asyncio

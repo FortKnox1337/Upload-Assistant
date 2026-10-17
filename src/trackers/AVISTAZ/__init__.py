@@ -25,6 +25,9 @@ from src.stats import record_event_async
 from src.temp_paths import screenshots_dir
 from src.trackers.common import Common
 from src.trackers.naming import add_incomplete_pack_marker
+from src.webui_progress import publish_progress
+from src.webui_prompts import prompt_details
+from src.webui_results import plain_detail, public_result_url, publish_tracker
 
 Config = dict[str, Any]
 
@@ -76,6 +79,11 @@ class AZTrackerBase:
 
         return keyword_map.get(resolution.lower(), "0")
 
+    def _database_progress(self, status: str, detail: str, url: str = "") -> None:
+        publish_progress(f"database:{self.tracker}", self.tracker, group="database", status=status, detail=plain_detail(detail), url=public_result_url(url))
+        outcome = {"needs_input": "Needs input", "adding": "Adding to database…", "checking": "Checking database entry…"}.get(status, "Checking…")
+        publish_tracker(self.tracker, outcome, detail)
+
     async def get_media_code(self, meta: Meta) -> bool:
         self.media_code = ""
 
@@ -95,6 +103,7 @@ class AZTrackerBase:
         for attempt in range(2):
             try:
                 if attempt == 1:
+                    self._database_progress("checking", "Checking the new database entry…")
                     logger.info(f"{self.tracker}: Trying to search again by ID after adding to media to database...\n")
                     await asyncio.sleep(5)  # Small delay to ensure the DB has been updated
 
@@ -120,30 +129,41 @@ class AZTrackerBase:
                     self.media_code = str(match["id"])
                     if attempt == 1:
                         logger.info(f"{self.tracker}: [green]Found new ID at:[/green] {self.base_url}/{meta.category.lower()}/{self.media_code}")
+                        self._database_progress("matched", "Media entry added to the site database.", f"{self.base_url}/{meta.category.lower()}/{self.media_code}")
                     return True
 
             except Exception as e:
                 logger.info(f"{self.tracker}: Error while trying to fetch media code in attempt {attempt + 1}: {e}")
+                self._database_progress("failed", f"Database lookup failed: {e}")
                 break
 
             if attempt == 0 and not self.media_code:
                 logger.info(f"{self.tracker}: \nThe media [[yellow]IMDB:{imdb_id}[/yellow]] [[blue]TMDB:{tmdb_id}[/blue]] appears to be missing from the site's database.")
                 if not meta.unattended or (meta.unattended and meta.unattended_confirm):
-                    if await prompt_in_thread(cli_ui.ask_yes_no, f"{self.tracker}: Do you want to add it to the site database?\n"):
+                    self._database_progress("needs_input", "This title is missing from the site's database.")
+                    review = {"tracker": self.tracker, "title": str(title or ""), "year": str(meta.year or ""), "category": meta.category, "imdb": imdb_id, "tmdb": tmdb_id}
+                    with prompt_details(database_review=review, question=f"Add this title to {self.tracker}'s database?"):
+                        add_to_database = await prompt_in_thread(cli_ui.ask_yes_no, f"{self.tracker}: Do you want to add it to the site database?\n")
+                    if add_to_database:
                         added_successfully = await self.add_media_to_db(meta, title, category, imdb_id, tmdb_id)
                         if not added_successfully:
                             logger.info(f"{self.tracker}: Failed to add media. Aborting.")
+                            self._database_progress("failed", "The media could not be added to the site database.")
                             break
                     else:
                         logger.info(f"{self.tracker}: User chose not to add media. Aborting.")
+                        self._database_progress("declined", "Adding this title to the site database was declined.")
                         break
                 else:
                     logger.info(f"{self.tracker}: [yellow]Unattended mode: Media missing from site database. Skipping {self.tracker} upload.[/yellow]")
+                    self._database_progress("failed", "Media is missing from the site database; automatic registration is disabled.")
                     meta.skipping = f"{self.tracker}"
                     return False
 
         if not self.media_code:
             logger.info(f"{self.tracker}: Unable to get media code.")
+            if attempt == 1:
+                self._database_progress("failed", "The new database entry could not be matched.")
 
         return bool(self.media_code)
 
@@ -168,6 +188,7 @@ class AZTrackerBase:
         }
 
         try:
+            self._database_progress("adding", "Adding this title to the site database…")
             logger.info(f"{self.tracker}: Trying to add to database...")
             response = await self.session.post(url, data=data, headers=headers)
             if response.status_code == 302:

@@ -54,6 +54,13 @@ LOSTIMG_MIN_SIZE = 75_000
 LOSTIMG_MAX_SIZE = 20_000_000
 
 
+def _report_reused_screenshots(count: int) -> None:
+    complete_progress(
+        "screenshots:reuse", "Existing screenshots", current=count, total=count, group="images", unit="images",
+        detail=f"Reusing {count} existing screenshots; no additional captures needed.",
+    )
+
+
 def is_valid_lostimg_image_size(image_size: int) -> bool:
     """Return whether an image meets Lostimg's accepted size range."""
     return LOSTIMG_MIN_SIZE < image_size <= LOSTIMG_MAX_SIZE
@@ -506,6 +513,7 @@ async def disc_screenshots(
 
     if len(existing_images) >= cutoff and not force_screenshots:
         logger.info(f"[yellow]There are already at least {cutoff} images in the image list. Skipping additional screenshots.")
+        _report_reused_screenshots(len(existing_images))
         return []
 
     if not num_screens:
@@ -874,6 +882,7 @@ async def dvd_screenshots(
 
     if len(existing_images) >= cutoff and not retry_cap:
         logger.info(f"[yellow]There are already at least {cutoff} images in the image list. Skipping additional screenshots.")
+        _report_reused_screenshots(len(existing_images))
         return
     screens = meta.screens if meta.screens is not None else 6
     if not num_screens:
@@ -1847,6 +1856,7 @@ async def screenshots(
 
     if len(existing_images) >= cutoff and not force_screenshots:
         logger.info(f"[yellow]There are already at least {cutoff} images in the image list. Skipping additional screenshots.")
+        _report_reused_screenshots(len(existing_images))
         return None
 
     if num_screens:

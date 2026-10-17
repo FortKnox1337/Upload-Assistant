@@ -24,7 +24,7 @@ from src.trackersetup import TrackerSetup, tracker_class_map
 from src.uphelper import UploadHelper
 from src.webui_progress import publish_progress, reset_progress
 from src.webui_prompts import build_check_review, capture_check_messages, prompt_details
-from src.webui_results import plain_detail, publish_tracker, publish_tracker_result
+from src.webui_results import plain_detail, publish_tracker, publish_tracker_result, tracker_retry_context
 from src.webui_warnings import warning_context
 
 
@@ -54,20 +54,23 @@ class TrackerStatusManager:
 
         with capture_check_messages(logger, tracker_name) as messages:
             result = await check(meta) if inspect.iscoroutinefunction(check) else check(meta)
-        if result or meta.get("unattended", False):
-            return bool(result)
+        if result:
+            return True
 
-        if sys.stdin.closed:
-            return False
-
-        try:
-            with prompt_details(check_review=build_check_review(tracker_name, messages)):
-                return await helper.prompt_yes_no(
-                    f"{tracker_name}: one or more upload checks failed. Do you want to proceed with the upload anyway?",
-                    default=False,
-                )
-        except EOFError:
-            return False
+        review = build_check_review(tracker_name, messages)
+        if not meta.get("unattended", False) and not sys.stdin.closed:
+            try:
+                with prompt_details(check_review=review):
+                    if await helper.prompt_yes_no(
+                        f"{tracker_name}: one or more upload checks failed. Do you want to proceed with the upload anyway?",
+                        default=False,
+                    ):
+                        return True
+            except EOFError:
+                pass
+        status = meta.tracker_status.setdefault(tracker_name, {})
+        status["skip_reason"] = "\n".join(review["messages"]) or status.get("skip_reason") or "Upload checks failed"
+        return False
 
     async def _confirm_failed_dupe_check(self, tracker_name: str, error: Exception, helper: Any) -> bool:
         with prompt_details(check_review=build_check_review(tracker_name, [str(error) or type(error).__name__], kind="duplicate")):
@@ -206,6 +209,7 @@ class TrackerStatusManager:
                         should_continue = await self._run_additional_checks(tracker_name, tracker_class, local_meta, helper)
                         if not should_continue:
                             local_tracker_status["skipped"] = True
+                            local_tracker_status["skip_reason"] = local_meta.tracker_status[tracker_name].get("skip_reason") or "Upload checks failed"
                             local_meta.skipping = tracker_name
 
                         if not local_tracker_status["skipped"]:
@@ -365,7 +369,7 @@ class TrackerStatusManager:
         async def check_tracker(tracker_name: str) -> tuple[str, dict[str, Any], str | None, Any]:
             publish_tracker(tracker_name, "Checking…")
             try:
-                with warning_context(tracker_name):
+                with warning_context(tracker_name), tracker_retry_context(logger, tracker_name):
                     result = await process_single_tracker(tracker_name, meta)
             except Exception:
                 publish_tracker(tracker_name, "Failed", "Tracker checks could not be completed. See Console for details.")

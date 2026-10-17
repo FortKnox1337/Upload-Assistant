@@ -3,14 +3,61 @@
 from __future__ import annotations
 
 import contextlib
+import contextvars
 import json
-from collections.abc import Mapping
+import logging
+import re
+from collections.abc import Iterator, Mapping
 from urllib.parse import urlsplit
 
 from rich.text import Text
 
 from src.cogs.redaction import Redaction
-from src.webui_progress import publish_progress
+from src.webui_progress import has_progress_callback, publish_progress
+
+_retry_context: contextvars.ContextVar[_TrackerRetries | None] = contextvars.ContextVar("webui_tracker_retries", default=None)
+
+
+class _TrackerRetries(logging.Handler):
+    """Expose existing retry reports only within their tracker request context."""
+
+    def __init__(self, tracker: str) -> None:
+        super().__init__(logging.INFO)
+        self.tracker = tracker
+        self.last_error = ""
+
+    def emit(self, record: logging.LogRecord) -> None:
+        if _retry_context.get() is not self:
+            return
+        try:
+            message = plain_detail(record.getMessage())
+            message = re.sub(rf"^{re.escape(self.tracker)}:\s*", "", message, flags=re.IGNORECASE)
+            if re.search(r"^retrying\b|\bretrying\s+(?:in|upload|request|with)\b|\bwill retry\b|\bretry in\b", message, re.IGNORECASE):
+                detail = message
+                if self.last_error and message.upper().strip(".! ") == "RETRYING UPLOAD":
+                    detail = f"{self.last_error}\n{message}"
+                publish_tracker(self.tracker, "Retrying…", detail)
+            elif re.search(r"\b(?:error|invalid|failed|timeout|connection)\b|timed out", message, re.IGNORECASE):
+                self.last_error = message
+        except Exception:
+            self.handleError(record)
+
+
+@contextlib.contextmanager
+def tracker_retry_context(logger: logging.Logger, tracker: str) -> Iterator[None]:
+    """Keep retries isolated across concurrent trackers and propagated threads."""
+    if not has_progress_callback():
+        yield
+        return
+    handler = _TrackerRetries(tracker)
+    token = _retry_context.set(handler)
+    logger.addHandler(handler)
+    try:
+        yield
+    finally:
+        logger.removeHandler(handler)
+        _retry_context.reset(token)
+        handler.close()
 
 
 def public_result_url(value: object) -> str:

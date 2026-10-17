@@ -150,3 +150,12 @@ test("ending a run stops unfinished tracker states without inventing success", (
   );
   assert.equal(rows[8].detail, "Reason");
 });
+
+test("ending a run clears retry and database work without inventing a result", () => {
+  for (const status of ["Retrying…", "Needs input", "Adding to database…", "Checking database entry…"]) {
+    const rows = merge([], [{ label: "TEST", group: "tracker", status, detail: "In progress" }], false);
+    assert.equal(rows[0].outcome, "Not completed");
+    assert.equal(rows[0].detail, "The run ended before this tracker reported a result.");
+    assert.equal(rows[0].url, "");
+  }
+});

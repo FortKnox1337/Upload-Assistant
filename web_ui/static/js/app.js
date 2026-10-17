@@ -2604,7 +2604,8 @@ function AudionutsUAGUI() {
       item.group !== "warning" &&
       item.group !== "duplicate_review" &&
       item.group !== "slot_review" &&
-      item.status !== "completed",
+      item.group !== "database" &&
+      (item.status !== "completed" || item.id === "screenshots:reuse"),
   );
 
   const sortProgressItems = (items) => {
@@ -2663,6 +2664,9 @@ function AudionutsUAGUI() {
 
   const renderProgressPanel = (compact = false, showHeader = true) => {
     if (!visibleProgressItems.length) return null;
+    const activeCount = visibleProgressItems.filter(
+      (item) => item.status !== "completed",
+    ).length;
 
     return (
       <div
@@ -2685,7 +2689,7 @@ function AudionutsUAGUI() {
             <span
               className={`text-xs font-medium ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}
             >
-              {visibleProgressItems.length} active
+              {activeCount ? `${activeCount} active` : "Complete"}
             </span>
           </div>
         )}

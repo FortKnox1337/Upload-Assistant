@@ -724,6 +724,53 @@
     );
   }
 
+  function DatabaseReview({ review }) {
+    const identifiers = [
+      {
+        label: "IMDb",
+        value: review.imdb,
+        valid: /^tt\d+$/i.test(review.imdb || ""),
+        url: `https://www.imdb.com/title/${review.imdb}/`,
+      },
+      {
+        label: "TMDb",
+        value: review.tmdb,
+        valid: /^\d+$/.test(review.tmdb || "") && Number(review.tmdb) > 0,
+        url: `https://www.themoviedb.org/${review.category === "TV" ? "tv" : "movie"}/${review.tmdb}`,
+      },
+    ];
+    return (
+      <div className="space-y-3 text-sm" data-testid="database-review">
+        <p>
+          This title is missing from {review.tracker}&apos;s media database.
+        </p>
+        <p className="font-semibold break-words [overflow-wrap:anywhere]">
+          {review.title || "Unknown title"}
+          {review.year ? ` (${review.year})` : ""}
+        </p>
+        <div className="flex flex-wrap gap-3">
+          {identifiers
+            .filter((item) => item.valid)
+            .map((item) => (
+              <a
+                key={item.label}
+                href={item.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="ua-accent-link hover:underline"
+              >
+                {item.label}: {item.value} ↗
+              </a>
+            ))}
+        </div>
+        <p className="opacity-80">
+          Adding the database entry does not upload the torrent. The uploader
+          will check the new entry before continuing.
+        </p>
+      </div>
+    );
+  }
+
   function CheckReview({ review, trackers = [] }) {
     const favicon = trackers.find(
       (tracker) => tracker.name.toUpperCase() === review.tracker.toUpperCase(),
@@ -922,6 +969,9 @@
         {prompt.check_review && (
           <CheckReview review={prompt.check_review} trackers={trackers} />
         )}
+        {prompt.database_review && (
+          <DatabaseReview review={prompt.database_review} />
+        )}
         {context && !prompt.review && (
           <details
             key={prompt.id}
@@ -929,6 +979,7 @@
               !prompt.upload_review &&
               !prompt.duplicate_review &&
               !prompt.check_review &&
+              !prompt.database_review &&
               (prompt.kind === "yes_no" || prompt.kind === "text")
             }
             className="text-sm"
@@ -1148,6 +1199,10 @@
         "Preparing…",
         "Uploading…",
         "Debug processing…",
+        "Retrying…",
+        "Needs input",
+        "Adding to database…",
+        "Checking database entry…",
       ].includes(item.outcome)
         ? {
             ...item,
@@ -1193,6 +1248,13 @@
         !trackerResults.some((row) => row.tracker === item.tracker),
     );
     const releaseNotices = prompt?.review?.notices || [];
+    const databaseEntries = new Map(
+      displayedProgress
+        .filter(
+          (item) => item.group === "database" && item.status === "matched",
+        )
+        .map((item) => [item.label, item]),
+    );
     const active = running && !prompt && !media?.awaiting_input;
     const activity = displayedProgress
       .filter((item) => item.group === "activity")
@@ -1461,6 +1523,25 @@
                           {detail}
                         </p>
                       )}
+                      {databaseEntries.has(tracker) && (
+                        <p className="mt-1 text-xs break-words [overflow-wrap:anywhere]">
+                          <span className="opacity-70">
+                            {databaseEntries.get(tracker).detail}{" "}
+                          </span>
+                          {/^https?:\/\//i.test(
+                            databaseEntries.get(tracker).url || "",
+                          ) && (
+                            <a
+                              href={databaseEntries.get(tracker).url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="ua-accent-link hover:underline"
+                            >
+                              View media entry ↗
+                            </a>
+                          )}
+                        </p>
+                      )}
                     </div>
                     <span
                       className={`shrink-0 ${
@@ -1468,7 +1549,10 @@
                           ? "text-green-500"
                           : outcome === "Failed"
                             ? "text-red-500"
-                            : "opacity-70"
+                            : outcome === "Retrying…" ||
+                                outcome === "Needs input"
+                              ? "text-amber-500"
+                              : "opacity-70"
                       }`}
                     >
                       {outcome}

@@ -128,6 +128,7 @@ from src.uploadorder import run_upload_order
 from src.uploadscreens import UploadScreensManager
 from src.webui_paths import is_generated_queue_path, subprocess_roots, validate_argument_paths, validate_subprocess_path, validate_subprocess_queue
 from src.webui_prompts import install_cli_ui_prompts, prompt_details
+from src.webui_results import publish_tracker_result
 
 # Runtime artifacts are user-owned; CODE_DIR remains the read-only checkout.
 base_dir = str(STATE_DIR)
@@ -1057,6 +1058,31 @@ def xxx_min_successful_uploads(meta: Meta, min_successful_uploads: int) -> int:
     return min(min_successful_uploads, max(1, contact_sheet_count))
 
 
+def _remove_client_trackers(meta: Meta) -> list[str]:
+    """Retain results for selected trackers that the torrent client already has."""
+    removed: list[str] = []
+    if not meta.remove_trackers:
+        return removed
+    remove_list = meta.remove_trackers if isinstance(meta.remove_trackers, list) else [str(meta.remove_trackers)]
+    current = meta.trackers if isinstance(meta.trackers, list) else [meta.trackers]
+    for tracker in remove_list:
+        if tracker and tracker in current:
+            if meta.debug:
+                logger.debug(f"[DEBUG] Would have removed {tracker} found in client")
+            else:
+                current.remove(tracker)
+                removed.append(tracker)
+                status = meta.tracker_status.setdefault(tracker, {})
+                status.pop("upload_success", None)
+                status.pop("uploaded_url", None)
+                status.update(upload=False, skipped=True, skip_reason="Already in your torrent client")
+                publish_tracker_result(tracker, status)
+    meta.trackers = current
+    if removed:
+        logger.info(f"[yellow]Removing trackers already in your client: {', '.join(removed)}[/yellow]")
+    return removed
+
+
 async def process_meta(meta: Meta, base_dir: str) -> bool:
     """Process the metadata for each queued path."""
     if not meta.imghost:
@@ -1225,20 +1251,7 @@ async def process_meta(meta: Meta, base_dir: str) -> bool:
             cleanup_manager.reset_terminal()
             sys.exit(1)
 
-    if meta.remove_trackers:
-        removed: list[str] = []
-        remove_trackers_list = [t for t in meta.remove_trackers if t] if isinstance(meta.remove_trackers, list) else [str(meta.remove_trackers)]
-        current_trackers = meta.trackers if isinstance(meta.trackers, list) else [meta.trackers]
-        for tracker in remove_trackers_list:
-            if tracker in current_trackers:
-                if meta.debug:
-                    logger.debug(f"[DEBUG] Would have removed {tracker} found in client")
-                else:
-                    current_trackers.remove(tracker)
-                    removed.append(tracker)
-        meta.trackers = current_trackers
-        if removed:
-            logger.info(f"[yellow]Removing trackers already in your client: {', '.join(removed)}[/yellow]")
+    _remove_client_trackers(meta)
     if not meta.trackers:
         logger.info("[red]No trackers remain after removal.[/red]")
         successful_trackers = 0

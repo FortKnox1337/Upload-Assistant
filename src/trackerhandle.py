@@ -27,7 +27,7 @@ from src.torrent_provision import provision_tracker_torrents
 from src.trackers.GAZELLE.passthepopcorn import PassThePopcorn
 from src.trackersetup import TrackerSetup
 from src.webui_progress import complete_progress
-from src.webui_results import public_result_url, publish_tracker, publish_tracker_result
+from src.webui_results import public_result_url, publish_tracker, publish_tracker_result, tracker_retry_context
 from src.webui_warnings import warning_context
 
 type StatusDict = dict[str, Any]
@@ -239,7 +239,8 @@ async def process_trackers(
                         upload_start_time = time.monotonic()
                         try:
                             publish_tracker(tracker, "Debug processing…" if meta.debug else "Uploading…")
-                            is_uploaded = await tracker_class.upload(meta)
+                            with tracker_retry_context(logger, tracker):
+                                is_uploaded = await tracker_class.upload(meta)
                         finally:
                             meta[f"{tracker}_upload_duration"] = time.monotonic() - upload_start_time
                     except Exception as e:
@@ -287,7 +288,8 @@ async def process_trackers(
                         upload_start_time = time.monotonic()
                         try:
                             publish_tracker(tracker, "Debug processing…" if meta.debug else "Uploading…")
-                            is_uploaded = await tracker_class.upload(meta)
+                            with tracker_retry_context(logger, tracker):
+                                is_uploaded = await tracker_class.upload(meta)
                         finally:
                             meta[f"{tracker}_upload_duration"] = time.monotonic() - upload_start_time
                     except Exception as e:
@@ -369,7 +371,8 @@ async def process_trackers(
                         upload_start_time = time.monotonic()
                         try:
                             publish_tracker(tracker, "Debug processing…" if meta.debug else "Uploading…")
-                            is_uploaded = await ptp.upload(meta, ptp_url, ptp_data)
+                            with tracker_retry_context(logger, tracker):
+                                is_uploaded = await ptp.upload(meta, ptp_url, ptp_data)
                         finally:
                             meta[f"{tracker}_upload_duration"] = time.monotonic() - upload_start_time
                     except Exception as e:

@@ -179,6 +179,18 @@ test("tab status reports shared-resource waits and pending prompts", () => {
   assert.equal(statusOf(context, "tab-1"), "error");
 });
 
+test("execution-mode arguments stay with their own upload tab", () => {
+  const context = setup();
+  context.customArgs = "--screens 6 --imagehost-upload-only";
+  context.addUploadTab();
+  assert.equal(context.customArgs, "");
+  context.customArgs = "--screens 4 -debug -ns -siu";
+  context.switchUploadTab("tab-1");
+  assert.equal(context.customArgs, "--screens 6 --imagehost-upload-only");
+  context.switchUploadTab("tab-2");
+  assert.equal(context.customArgs, "--screens 4 -debug -ns -siu");
+});
+
 test("no more than the maximum number of tabs can be opened", () => {
   const context = setup();
   for (let i = 0; i < context.MAX_UPLOAD_TABS + 2; i++) context.addUploadTab();

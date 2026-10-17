@@ -150,9 +150,21 @@ Choose **Check status** to run a lightweight website-reachability check for the 
 After selecting content and reviewing the command:
 
 1. Confirm the intended tracker buttons are selected.
-2. Choose **Execute Upload**.
-3. Follow the streamed **Execution Output**.
-4. Answer prompts with the input controls shown at the bottom of the output panel.
+2. Choose an execution mode from the arrow beside **Execute Upload**, if needed. **Normal Upload** is selected by default.
+3. Click the main button to start the selected action. Selecting a menu option only changes the mode and button label; it does not start a run.
+4. Follow the streamed **Execution Output**.
+5. Answer prompts with the input controls shown at the bottom of the output panel.
+
+The menu offers these modes:
+
+| Mode                                  | Arguments                 | Behaviour                                                                                                     |
+| ------------------------------------- | ------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Normal Upload                         | No mode flags             | Upload using your configured defaults and additional arguments.                                               |
+| Upload Screenshots Only               | `--imagehost-upload-only` | Capture and upload screenshots to image hosts without uploading to trackers.                                  |
+| Run Debug                             | `-debug`                  | Run checks without uploading to trackers. Image hosting and torrent-client actions may still run.             |
+| Debug — skip client and image uploads | `-debug -ns -siu`         | Run debug without adding torrents to the client or uploading screenshots. Torrent files may still be created. |
+
+Choosing a mode updates **Additional Arguments**, replacing existing debug, image-only, no-seed, and skip-imagehost-upload flags while preserving other arguments. Editing those flags directly or loading a preset also updates the selected mode. Each tab retains its own mode with its arguments, including when saved as a browser draft or argument preset. Choose **Normal Upload** to clear the mode flags before a normal tracker upload; your other arguments and configured defaults still apply.
 
 The WebUI runs the upload controller in an isolated subprocess so that **Kill** can stop its process tree and interactive input can be forwarded to it.
 
@@ -190,13 +202,13 @@ While an upload is active, the workspace changes from setup controls to live run
 
 ### Generated screenshots
 
-Choose **Prepare Images** in the upload controls to capture and host screenshots without submitting the release to a tracker. Select the intended trackers and screenshot arguments first so host selection and capture use the intended settings. The action runs `--imagehost-upload-only` for this execution; it does not add the flag to your saved arguments.
+Choose **Upload Screenshots Only** from the execution-mode menu, then click the main button to capture and upload screenshots to image hosts without uploading to trackers. This lets you check that all images upload successfully before starting a tracker upload. Select the intended trackers and screenshot arguments first so host selection and capture use the intended settings. The mode adds `--imagehost-upload-only` to **Additional Arguments**; the flag is also available in **Arguments → Screenshots / Images**.
 
-Before hosting begins, the run pauses for confirmation (unless unattended mode is selected). Open **Screenshots** to review, replace, add, or delete frames, then confirm image hosting in the output panel. The final message shows how many requested images were uploaded. Every requested image must succeed; a partial preparation is saved and reported as failed, and **Prepare Images** can be run again to retry the remaining files.
+Before hosting begins, the run pauses for confirmation (unless unattended mode is selected). Open **Screenshots** to review, replace, add, or delete frames, then confirm image hosting in the output panel. The final message shows how many requested images were uploaded. Every requested image must succeed; a partial preparation is saved and reported as failed, and **Upload Screenshots Only** can be run again to retry the remaining files.
 
-After preparation completes, use **Execute Upload** normally to reuse the saved images. Tracker checks and submission still happen during that later run. The flag is also available in **Arguments → Screenshots / Images**; remove it before a normal upload if you added it yourself.
+After preparation completes, choose **Normal Upload**, then click **Execute Upload** to reuse the saved images. Tracker checks and submission still happen during that later run.
 
-**Prepare Images** uses the same execution slots as uploads and becomes **Schedule Images** when scheduling is available. It does not hash torrents, inject them into a client, post to Usenet, or run post-upload hooks.
+**Upload Screenshots Only** uses the same execution slots as uploads and becomes **Schedule Screenshots** when scheduling is available. It does not hash torrents, inject them into a client, post to Usenet, or run post-upload hooks. Debug modes use the same slots and scheduling rules.
 
 When screenshot capture has completed, open **Screenshots** to review frames before image hosting. Screenshots are grouped for the main title and any additional discs or playlists.
 

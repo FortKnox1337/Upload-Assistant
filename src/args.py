@@ -172,7 +172,7 @@ Common options:
   -tvdb, --tvdb              Specify the TVDB id to use
   --queue (queue name)       Process an entire folder (including files/subfolders) in a queue
   -mf, --manual_frames       Comma-separated list of frame numbers to use for screenshots
-  --imagehost-upload-only    Prepare and host screenshots without uploading to trackers
+  --imagehost-upload-only    Capture and upload screenshots without uploading to trackers
   --description              Inline custom description block
   -df, --descfile            Path to custom description file
   -ov, --overview            Overview/synopsis override for any category
@@ -861,7 +861,10 @@ class Args:
         imagehost_mode.add_argument(
             "--imagehost-upload-only",
             action="store_true",
-            help="Capture and upload screenshots to image hosts, then exit without uploading to trackers. Save successful images for a later upload or retry.",
+            help=(
+                "Capture and upload screenshots to image hosts without uploading to trackers. "
+                "Check that all images upload successfully before starting a tracker upload."
+            ),
         )
         parser.add_argument("-th", "--torrenthash", nargs=1, required=False, help="Torrent Hash to re-use from your client's session directory")
         parser.add_argument("-nfo", "--nfo", action="store_true", required=False, help="Use .nfo in directory for description")

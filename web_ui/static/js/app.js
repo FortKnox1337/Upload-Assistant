@@ -183,6 +183,124 @@ const UPLOAD_TAB_STATUS_LABELS = {
   error: "Failed",
 };
 
+const EXECUTION_MODES = [
+  {
+    id: "normal",
+    label: "Normal Upload",
+    button: "Execute Upload",
+    schedule: "Schedule Upload",
+    flags: [],
+    description:
+      "Upload using your configured defaults and additional arguments.",
+  },
+  {
+    id: "images",
+    label: "Upload Screenshots Only",
+    button: "Upload Screenshots Only",
+    compactButton: "Screenshots Only",
+    schedule: "Schedule Screenshots",
+    flags: ["--imagehost-upload-only"],
+    description:
+      "Capture and upload screenshots to image hosts without uploading to trackers. Check that all images upload successfully before starting a tracker upload.",
+  },
+  {
+    id: "debug",
+    label: "Run Debug",
+    button: "Run Debug",
+    schedule: "Schedule Debug",
+    flags: ["-debug"],
+    description:
+      "Run checks without uploading to trackers. Image hosting and torrent-client actions may still run.",
+  },
+  {
+    id: "debug-local",
+    label: "Debug — skip client and image uploads",
+    button: "Debug: no client/images",
+    schedule: "Schedule Debug: no client/images",
+    flags: ["-debug", "-ns", "-siu"],
+    description:
+      "Run debug without adding torrents to the client or uploading screenshots. Torrent files may still be created.",
+  },
+];
+
+const EXECUTION_MODE_FLAGS = new Set([
+  "--imagehost-upload-only",
+  "--debug",
+  "-debug",
+  "--no-seed",
+  "-ns",
+  "--skip-imagehost-upload",
+  "-siu",
+]);
+
+// Keep quoted values and Windows paths intact when replacing mode flags.
+const executionArgumentTokens = (args) => {
+  const tokens = [];
+  let start = -1;
+  let quote = "";
+  for (let index = 0; index < args.length; index++) {
+    const char = args[index];
+    if (start === -1) {
+      if (/\s/.test(char)) continue;
+      start = index;
+    }
+    if (quote) {
+      if (char === "\\" && quote === '"' && index + 1 < args.length) index++;
+      else if (char === quote) quote = "";
+    } else if (char === '"' || char === "'") {
+      quote = char;
+    } else if (char === "\\" && /[\s"']/.test(args[index + 1] || "")) {
+      index++;
+    } else if (/\s/.test(char)) {
+      tokens.push(args.slice(start, index));
+      start = -1;
+    }
+  }
+  if (start !== -1) tokens.push(args.slice(start));
+  return tokens;
+};
+
+const getExecutionMode = (args) => {
+  const flags = new Set(executionArgumentTokens(args));
+  if (flags.has("--imagehost-upload-only")) return EXECUTION_MODES[1];
+  if (flags.has("-debug") || flags.has("--debug")) {
+    const local =
+      (flags.has("-ns") || flags.has("--no-seed")) &&
+      (flags.has("-siu") || flags.has("--skip-imagehost-upload"));
+    return EXECUTION_MODES[local ? 3 : 2];
+  }
+  return EXECUTION_MODES[0];
+};
+
+const setExecutionModeArguments = (args, modeId) => {
+  const mode = EXECUTION_MODES.find((item) => item.id === modeId);
+  if (!mode) return args;
+  return [
+    ...mode.flags,
+    ...executionArgumentTokens(args).filter(
+      (token) => !EXECUTION_MODE_FLAGS.has(token),
+    ),
+  ].join(" ");
+};
+
+const executionMenuPosition = (rect, width, height) => {
+  const menuWidth = Math.min(420, width - 24);
+  const below = height - rect.bottom - 12;
+  const above = rect.top - 12;
+  const openAbove = below < 320 && above > below;
+  return {
+    width: menuWidth,
+    left: Math.max(
+      12,
+      Math.min(rect.right - menuWidth, width - menuWidth - 12),
+    ),
+    maxHeight: Math.max(80, (openAbove ? above : below) - 8),
+    ...(openAbove
+      ? { bottom: height - rect.top + 8 }
+      : { top: rect.bottom + 8 }),
+  };
+};
+
 const createUploadTabForm = () => ({
   selectedPath: "",
   selectedPaths: [],
@@ -1972,6 +2090,11 @@ function AudionutsUAGUI() {
   const [pathInputError, setPathInputError] = useState("");
   const [, setSelectedName] = useState("");
   const [customArgs, setCustomArgs] = useState("");
+  const [isExecutionMenuOpen, setIsExecutionMenuOpen] = useState(false);
+  const [executionMenuStyle, setExecutionMenuStyle] = useState({});
+  const executionMenuRef = useRef(null);
+  const executionMenuToggleRef = useRef(null);
+  const executionButtonRef = useRef(null);
   const [argumentPresets, setArgumentPresets] = useState([]);
   const [argumentPresetName, setArgumentPresetName] = useState("");
   const [selectedArgumentPreset, setSelectedArgumentPreset] = useState("");
@@ -5656,10 +5779,8 @@ function AudionutsUAGUI() {
     }).catch((error) => console.error("Failed to dismiss session:", error));
   };
 
-  const buildExecutionArguments = (customArgs, itemArgs, imagehostOnly) =>
-    [customArgs, itemArgs, imagehostOnly ? "--imagehost-upload-only" : ""]
-      .filter(Boolean)
-      .join(" ");
+  const buildExecutionArguments = (customArgs, itemArgs) =>
+    [customArgs, itemArgs].filter(Boolean).join(" ");
 
   const executeSinglePath = async (
     path,
@@ -5667,13 +5788,8 @@ function AudionutsUAGUI() {
     itemArgs = "",
     tabId = activeTabIdRef.current,
     label = "",
-    imagehostOnly = false,
   ) => {
-    const executionArgs = buildExecutionArguments(
-      customArgs,
-      itemArgs,
-      imagehostOnly,
-    );
+    const executionArgs = buildExecutionArguments(customArgs, itemArgs);
     const reportError = (message) => {
       appendSystemMessage(message, "error", tabId);
       return false;
@@ -5936,7 +6052,7 @@ function AudionutsUAGUI() {
     if (runtime) runtime.view.form.pathInputError = message;
   };
 
-  const executeCommand = async ({ imagehostOnly = false } = {}) => {
+  const executeCommand = async () => {
     if (screenshotMode) return;
     window.uaPromptSound?.unlock();
     if (isExecuting) return;
@@ -5993,7 +6109,6 @@ function AudionutsUAGUI() {
         items.length === 1 ? items[0].args : "",
         tabId,
         getUploadTabTitle(items),
-        imagehostOnly,
       );
     } catch (error) {
       reportTabPathError(tabId, `Could not prepare upload: ${error.message}`);
@@ -6165,33 +6280,186 @@ function AudionutsUAGUI() {
     (!selectedPath && selectedPaths.length === 0) ||
     isExecuting ||
     (uploadSlotsFull && !schedulingEnabled);
-  const executeButtonTitle = uploadSlotsFull
-    ? schedulingEnabled
-      ? `All ${maxRunningUploads} upload slots are busy; this upload starts automatically when one frees.`
-      : `All ${maxRunningUploads} upload slots are busy; wait for an upload to finish.`
-    : undefined;
-  const getExecuteButtonLabel = () => {
+  const selectedExecutionMode = getExecutionMode(customArgs);
+  const executeButtonTitle = [
+    selectedExecutionMode.description,
+    uploadSlotsFull
+      ? schedulingEnabled
+        ? `All ${maxRunningUploads} upload slots are busy; this run starts automatically when one frees.`
+        : `All ${maxRunningUploads} upload slots are busy; wait for a run to finish.`
+      : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const getExecuteButtonLabel = (compact = false) => {
     if (isExecuting) return activeTabScheduled ? "Scheduled" : "Executing...";
-    if (/(?:^|\s)--imagehost-upload-only(?:\s|$)/.test(customArgs)) {
-      return uploadSlotsFull ? "Schedule Images" : "Prepare Images";
+    if (uploadSlotsFull && !schedulingEnabled) return "All upload slots busy";
+    if (selectedExecutionMode.id !== "normal") {
+      return uploadSlotsFull
+        ? selectedExecutionMode.schedule
+        : compact
+          ? selectedExecutionMode.compactButton || selectedExecutionMode.button
+          : selectedExecutionMode.button;
     }
     const noun = selectedPaths.length > 1 ? "Queue" : "Upload";
-    if (!uploadSlotsFull) return `Execute ${noun}`;
-    return schedulingEnabled ? `Schedule ${noun}` : "All upload slots busy";
+    return `${uploadSlotsFull ? "Schedule" : "Execute"} ${noun}`;
   };
   const killButtonLabel = activeTabScheduled ? "Cancel" : "Kill";
 
-  const renderPrepareImagesButton = () => (
-    <button
-      type="button"
-      onClick={() => executeCommand({ imagehostOnly: true })}
-      disabled={executeDisabled}
-      title="Capture and host screenshots, then stop before tracker uploads. Successful images are saved for a later upload."
-      className="ua-config-service-action mt-2 flex w-full items-center justify-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50"
-    >
-      <ScreenshotsIcon />
-      {uploadSlotsFull ? "Schedule Images" : "Prepare Images"}
-    </button>
+  const selectExecutionMode = (modeId) => {
+    if (isExecuting || screenshotMode) return;
+    setCustomArgs((args) => setExecutionModeArguments(args, modeId));
+    setIsExecutionMenuOpen(false);
+    executionButtonRef.current?.focus({ preventScroll: true });
+  };
+
+  const toggleExecutionMenu = () => {
+    if (isExecuting || screenshotMode) return;
+    if (isExecutionMenuOpen) {
+      setIsExecutionMenuOpen(false);
+      return;
+    }
+    const rect = executionMenuToggleRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    setExecutionMenuStyle(
+      executionMenuPosition(rect, window.innerWidth, window.innerHeight),
+    );
+    setIsExecutionMenuOpen(true);
+  };
+
+  useEffect(() => {
+    setIsExecutionMenuOpen(false);
+  }, [activeTabId, isExecuting, isMobile]);
+
+  useEffect(() => {
+    if (!isExecutionMenuOpen) return undefined;
+    executionMenuRef.current
+      ?.querySelector('[aria-checked="true"]')
+      ?.focus({ preventScroll: true });
+    const closeOutside = (event) => {
+      if (
+        !executionMenuRef.current?.contains(event.target) &&
+        !executionMenuToggleRef.current?.contains(event.target)
+      ) {
+        setIsExecutionMenuOpen(false);
+      }
+    };
+    const closeOnScroll = (event) => {
+      if (!executionMenuRef.current?.contains(event.target)) {
+        setIsExecutionMenuOpen(false);
+      }
+    };
+    const closeOnResize = () => setIsExecutionMenuOpen(false);
+    document.addEventListener("pointerdown", closeOutside);
+    document.addEventListener("scroll", closeOnScroll, true);
+    window.addEventListener("resize", closeOnResize);
+    return () => {
+      document.removeEventListener("pointerdown", closeOutside);
+      document.removeEventListener("scroll", closeOnScroll, true);
+      window.removeEventListener("resize", closeOnResize);
+    };
+  }, [isExecutionMenuOpen]);
+
+  const handleExecutionMenuKeyDown = (event) => {
+    if (event.key === "Escape" || event.key === "Tab") {
+      if (event.key === "Escape") event.preventDefault();
+      setIsExecutionMenuOpen(false);
+      executionMenuToggleRef.current?.focus({ preventScroll: true });
+      return;
+    }
+    if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
+    event.preventDefault();
+    const items = Array.from(
+      executionMenuRef.current?.querySelectorAll('[role="menuitemradio"]') ||
+        [],
+    );
+    if (!items.length) return;
+    const index = items.indexOf(document.activeElement);
+    const next =
+      event.key === "Home"
+        ? 0
+        : event.key === "End"
+          ? items.length - 1
+          : (index + (event.key === "ArrowDown" ? 1 : -1) + items.length) %
+            items.length;
+    items[next].focus();
+  };
+
+  const renderExecutionModeMenu = () =>
+    ReactDOM.createPortal(
+      <div
+        id="ua-execution-modes"
+        ref={executionMenuRef}
+        role="menu"
+        aria-label="Execution modes"
+        style={executionMenuStyle}
+        onKeyDown={handleExecutionMenuKeyDown}
+        className={`fixed z-[70] overflow-y-auto rounded-lg border p-1 shadow-xl ${isDarkMode ? "border-gray-600 bg-gray-800 text-gray-100" : "border-gray-300 bg-white text-gray-900"}`}
+      >
+        {EXECUTION_MODES.map((mode) => (
+          <button
+            key={mode.id}
+            type="button"
+            role="menuitemradio"
+            aria-checked={selectedExecutionMode.id === mode.id}
+            tabIndex={-1}
+            onClick={() => selectExecutionMode(mode.id)}
+            className={`flex w-full items-start gap-3 rounded px-3 py-3 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400 ${selectedExecutionMode.id === mode.id ? (isDarkMode ? "bg-gray-700" : "bg-gray-100") : isDarkMode ? "hover:bg-gray-700" : "hover:bg-gray-100"}`}
+          >
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-semibold">{mode.label}</span>
+              <span className="mt-1 block text-xs leading-relaxed opacity-70">
+                {mode.description}
+              </span>
+            </span>
+            {selectedExecutionMode.id === mode.id && (
+              <LucideIcon name="check" className="mt-0.5 h-4 w-4 shrink-0" />
+            )}
+          </button>
+        ))}
+      </div>,
+      document.body,
+    );
+
+  const renderExecutionControls = (compact = false) => (
+    <div className="flex min-w-0 flex-1 overflow-hidden rounded-lg">
+      <button
+        ref={executionButtonRef}
+        type="button"
+        onClick={() => {
+          setIsExecutionMenuOpen(false);
+          executeCommand();
+        }}
+        disabled={executeDisabled}
+        aria-label={getExecuteButtonLabel()}
+        title={executeButtonTitle}
+        className={`ua-accent-action flex min-w-0 flex-1 items-center justify-center gap-2 px-3 py-3 font-medium disabled:cursor-not-allowed disabled:bg-gray-400 ${compact ? "text-sm" : "text-lg"}`}
+      >
+        <PlayIcon />
+        <span className="truncate">{getExecuteButtonLabel(compact)}</span>
+      </button>
+      <button
+        ref={executionMenuToggleRef}
+        type="button"
+        aria-label={`Choose execution mode. Current mode: ${selectedExecutionMode.label}`}
+        aria-haspopup="menu"
+        aria-expanded={isExecutionMenuOpen}
+        aria-controls="ua-execution-modes"
+        title={`Choose execution mode. Current mode: ${selectedExecutionMode.label}`}
+        disabled={isExecuting || Boolean(screenshotMode)}
+        onClick={toggleExecutionMenu}
+        onKeyDown={(event) => {
+          if (["ArrowDown", "ArrowUp"].includes(event.key)) {
+            event.preventDefault();
+            if (!isExecutionMenuOpen) toggleExecutionMenu();
+          }
+        }}
+        className="ua-accent-action flex w-12 shrink-0 items-center justify-center border-l border-white/25 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        <ChevronDownIcon />
+      </button>
+      {isExecutionMenuOpen && renderExecutionModeMenu()}
+    </div>
   );
 
   const renderCloseUploadTabDialog = () => {
@@ -8202,15 +8470,7 @@ function AudionutsUAGUI() {
 
                 {/* Execute & Kill buttons */}
                 <div className="flex gap-2">
-                  <button
-                    onClick={executeCommand}
-                    disabled={executeDisabled}
-                    title={executeButtonTitle}
-                    className="ua-accent-action flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg disabled:bg-gray-400 disabled:cursor-not-allowed font-medium"
-                  >
-                    <PlayIcon />
-                    {getExecuteButtonLabel()}
-                  </button>
+                  {renderExecutionControls(true)}
                   <button
                     onClick={clearTerminal}
                     aria-label={
@@ -8232,7 +8492,6 @@ function AudionutsUAGUI() {
                     <TrashIcon />
                   </button>
                 </div>
-                {renderPrepareImagesButton()}
                 {renderTrackerSelector()}
               </div>
             )}
@@ -9138,15 +9397,7 @@ function AudionutsUAGUI() {
 
                     {/* Execute Button */}
                     <div className="flex gap-2">
-                      <button
-                        onClick={executeCommand}
-                        disabled={executeDisabled}
-                        title={executeButtonTitle}
-                        className="ua-accent-action flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg disabled:bg-gray-400 disabled:cursor-not-allowed font-medium text-lg"
-                      >
-                        <PlayIcon />
-                        {getExecuteButtonLabel()}
-                      </button>
+                      {renderExecutionControls()}
                       <button
                         onClick={clearTerminal}
                         aria-label={
@@ -9169,7 +9420,6 @@ function AudionutsUAGUI() {
                         {isExecuting ? "Kill & Clear" : "Clear"}
                       </button>
                     </div>
-                    {renderPrepareImagesButton()}
                     {renderTrackerSelector()}
                   </>
                 )}

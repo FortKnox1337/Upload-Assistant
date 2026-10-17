@@ -1179,6 +1179,23 @@
     );
   }
 
+  function trackerDetailText(tracker, detail) {
+    const name = String(tracker || "")
+      .trim()
+      .toLowerCase();
+    return String(detail || "")
+      .split("\n")
+      .map((line) => {
+        const colon = line.indexOf(":");
+        return name &&
+          line.slice(0, colon).trim().toLowerCase() === name &&
+          colon >= 0
+          ? line.slice(colon + 1).trimStart()
+          : line;
+      })
+      .join("\n");
+  }
+
   function mergeTrackerResults(results, progress, running) {
     const rows = new Map(results.map((item) => [item.tracker, item]));
     progress
@@ -1520,7 +1537,7 @@
                       />
                       {detail && (
                         <p className="mt-1 text-xs opacity-70 whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
-                          {detail}
+                          {trackerDetailText(tracker, detail)}
                         </p>
                       )}
                       {databaseEntries.has(tracker) && (
